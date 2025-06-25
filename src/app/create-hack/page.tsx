@@ -15,17 +15,17 @@ import { FileUpload } from "@/components/file-upload"
 import { MilestoneInput } from "@/components/milestone-input"
 import type { ProjectData } from "@/lib/infinifund-contract"
 import { PinataSDK } from "pinata"
-import { GoogleGenAI } from "@google/genai"
 import { toast } from "sonner"
 import { ethers } from "ethers"
 import { useInfinifundContract } from "@/hooks/use-infinifund-contract"
+import { reviewProjectWithAI } from "@/lib/gemini-ai"
 
 const pinata = new PinataSDK({
   pinataJwt: process.env.NEXT_PUBLIC_PINATA_KEY,
   pinataGateway: "example-gateway.mypinata.cloud",
 })
 
-const ai = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY || "YOUR_API_KEY" })
+// const ai = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY || "YOUR_API_KEY" })
 
 interface Milestone {
   id: string
@@ -54,38 +54,38 @@ const initialFormData: FormData = {
 // Remove this line:
 // const DUMMY_ADDRESS = "0x742d35Cc6634C0532925a3b8D4C9db96C4b4d4d4"
 
-const INFINITA_CITY_PROMPT = `
-You are an AI reviewer for Infinita City - "The City That Never Dies" - a pioneering network city in Próspera, Roatán, Honduras, dedicated to advancing human longevity and frontier technology.
+// const INFINITA_CITY_PROMPT = `
+// You are an AI reviewer for Infinita City - "The City That Never Dies" - a pioneering network city in Próspera, Roatán, Honduras, dedicated to advancing human longevity and frontier technology.
 
-INFINITA CITY MISSION:
-- Accelerate breakthroughs in Biotechnology and Longevity Science
-- Advance Computational Science and AI
-- Pioneer Cybernetics and Human Enhancement
-- Foster Decentralized Science (DeSci) and Web3
-- Extend healthy human lifespan and redefine civilization's future
+// INFINITA CITY MISSION:
+// - Accelerate breakthroughs in Biotechnology and Longevity Science
+// - Advance Computational Science and AI
+// - Pioneer Cybernetics and Human Enhancement
+// - Foster Decentralized Science (DeSci) and Web3
+// - Extend healthy human lifespan and redefine civilization's future
 
-EVALUATION CRITERIA:
-1. Alignment with longevity/biotech/AI/Web3/cybernetics themes
-2. Innovation potential and scientific merit
-3. Feasibility and realistic milestones
-4. Potential impact on human flourishing
-5. Fit with Infinita City's vision of technological acceleration
+// EVALUATION CRITERIA:
+// 1. Alignment with longevity/biotech/AI/Web3/cybernetics themes
+// 2. Innovation potential and scientific merit
+// 3. Feasibility and realistic milestones
+// 4. Potential impact on human flourishing
+// 5. Fit with Infinita City's vision of technological acceleration
 
-RESPONSE FORMAT (JSON):
-{
-  "approved": boolean,
-  "feedback": "Detailed explanation of decision",
-  "score": number (1-100),
-  "suggestions": ["improvement suggestion 1", "suggestion 2", "suggestion 3"]
-}
+// RESPONSE FORMAT (JSON):
+// {
+//   "approved": boolean,
+//   "feedback": "Detailed explanation of decision",
+//   "score": number (1-100),
+//   "suggestions": ["improvement suggestion 1", "suggestion 2", "suggestion 3"]
+// }
 
-PROJECT TO REVIEW:
-Name: {projectName}
-Description: {projectDetails}
-Milestones: {milestones}
+// PROJECT TO REVIEW:
+// Name: {projectName}
+// Description: {projectDetails}
+// Milestones: {milestones}
 
-Provide your evaluation as JSON only.
-`
+// Provide your evaluation as JSON only.
+// `
 
 export default function CreateProject() {
   const [iconFile, setIconFile] = useState<File | null>(null)
@@ -103,7 +103,44 @@ export default function CreateProject() {
   const infinifundContract = useInfinifundContract()
 
   useEffect(() => {
-    checkConnection()
+    const handleAccountsChanged = (accounts: string[]) => {
+      if (accounts.length > 0) {
+        setUserAddress(accounts[0])
+        setIsConnected(true)
+        checkCitizenshipStatus(accounts[0])
+      } else {
+        setUserAddress("")
+        setIsConnected(false)
+        setIsCitizen(false)
+      }
+    }
+
+    const checkCitizenshipStatus = async (address: string) => {
+      try {
+        const citizenStatus = await infinifundContract.isCitizen(address)
+        setIsCitizen(citizenStatus)
+      } catch (error) {
+        console.error("Error checking citizenship:", error)
+      }
+    }
+
+    if (typeof window !== "undefined" && window.ethereum) {
+      window.ethereum.on("accountsChanged", handleAccountsChanged)
+
+      // Check if already connected
+      window.ethereum
+        .request({ method: "eth_accounts" })
+        .then((accounts: string[]) => {
+          if (accounts.length > 0) {
+            handleAccountsChanged(accounts)
+          }
+        })
+        .catch(console.error)
+
+      return () => {
+        window.ethereum.removeListener("accountsChanged", handleAccountsChanged)
+      }
+    }
   }, [])
 
   const checkConnection = async () => {
@@ -165,39 +202,7 @@ export default function CreateProject() {
     }))
   }
 
-  const reviewWithAI = async (): Promise<AIReviewResult> => {
-    const prompt = INFINITA_CITY_PROMPT.replace("{projectName}", formData.name)
-      .replace("{projectDetails}", formData.details)
-      .replace("{milestones}", milestones.map((m) => m.description).join("; "))
-
-    try {
-      
-      const result = await ai.models.generateContent({ 
-      model: "gemini-2.5-flash",
-    contents: "Explain how AI works in a few words",
-       })
-      // const response = await result.text
-      const text:any = result.text
-
-      // Parse JSON response
-      const jsonMatch = text.match(/\{[\s\S]*\}/)
-      if (jsonMatch) {
-        return JSON.parse(jsonMatch[0])
-      }
-
-      // Fallback if no JSON found
-      return {
-        approved: true,
-        feedback: text,
-        score: 75,
-        suggestions: ["Consider adding more technical details"],
-      }
-    } catch (error) {
-      console.error("AI Review Error:", error)
-      throw new Error("Failed to review project with AI. Please try again.")
-    }
-  }
-
+  // Replace the reviewWithAI function with:
   const handleAIReview = async () => {
     if (!formData.name.trim() || !formData.details.trim() || milestones.some((m) => !m.description.trim())) {
       toast.error("Please fill in all required fields before review")
@@ -213,7 +218,11 @@ export default function CreateProject() {
     toast.info("🧠 AI is reviewing your project for Infinita City alignment...")
 
     try {
-      const review = await reviewWithAI()
+      const review = await reviewProjectWithAI({
+        projectName: formData.name,
+        projectDetails: formData.details,
+        milestones: milestones.map((m) => m.description),
+      })
       setAiReview(review)
       setShowReviewModal(true)
     } catch (error) {
@@ -222,6 +231,61 @@ export default function CreateProject() {
       setIsReviewing(false)
     }
   }
+
+  // const reviewWithAI = async (): Promise<AIReviewResult> => {
+  //   const prompt = INFINITA_CITY_PROMPT.replace("{projectName}", formData.name)
+  //     .replace("{projectDetails}", formData.details)
+  //     .replace("{milestones}", milestones.map((m) => m.description).join("; "))
+
+  //   try {
+  //     const model = ai.getGenerativeModel({ model: "gemini-pro" })
+  //     const result = await model.generateContent(prompt)
+  //     const response = await result.response
+  //     const text = response.text()
+
+  //     // Parse JSON response
+  //     const jsonMatch = text.match(/\{[\s\S]*\}/)
+  //     if (jsonMatch) {
+  //       return JSON.parse(jsonMatch[0])
+  //     }
+
+  //     // Fallback if no JSON found
+  //     return {
+  //       approved: text.toLowerCase().includes("approved") || text.toLowerCase().includes("pass"),
+  //       feedback: text,
+  //       score: 75,
+  //       suggestions: ["Consider adding more technical details"],
+  //     }
+  //   } catch (error) {
+  //     console.error("AI Review Error:", error)
+  //     throw new Error("Failed to review project with AI. Please try again.")
+  //   }
+  // }
+
+  // const handleAIReview = async () => {
+  //   if (!formData.name.trim() || !formData.details.trim() || milestones.some((m) => !m.description.trim())) {
+  //     toast.error("Please fill in all required fields before review")
+  //     return
+  //   }
+
+  //   if (!acceptedTerms) {
+  //     toast.error("Please accept the terms and conditions")
+  //     return
+  //   }
+
+  //   setIsReviewing(true)
+  //   toast.info("🧠 AI is reviewing your project for Infinita City alignment...")
+
+  //   try {
+  //     const review = await reviewWithAI()
+  //     setAiReview(review)
+  //     setShowReviewModal(true)
+  //   } catch (error) {
+  //     toast.error("Failed to review project. Please try again.")
+  //   } finally {
+  //     setIsReviewing(false)
+  //   }
+  // }
 
   const handleFinalSubmit = async () => {
     if (!aiReview?.approved) {

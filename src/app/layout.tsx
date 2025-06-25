@@ -53,7 +53,7 @@ export default function RootLayout({
 />
 
           <Navbar></Navbar>
-
+  <div className="mt-14"></div>
 
         {children}
           </Providers>

@@ -79,8 +79,62 @@ export class InfinifundContract {
     if (!this.contract) {
       throw new Error("Contract not initialized. Call connect() first.")
     }
-
     return await this.contract.requestCitizenship()
+  }
+
+  async approveCitizenship(userAddress: string): Promise<ethers.ContractTransactionResponse> {
+    if (!this.contract) {
+      throw new Error("Contract not initialized. Call connect() first.")
+    }
+    return await this.contract.approveCitizenship(userAddress)
+  }
+
+  async rejectCitizenship(userAddress: string): Promise<ethers.ContractTransactionResponse> {
+    if (!this.contract) {
+      throw new Error("Contract not initialized. Call connect() first.")
+    }
+    return await this.contract.rejectCitizenship(userAddress)
+  }
+
+  async revokeCitizenship(userAddress: string): Promise<ethers.ContractTransactionResponse> {
+    if (!this.contract) {
+      throw new Error("Contract not initialized. Call connect() first.")
+    }
+    return await this.contract.revokeCitizenship(userAddress)
+  }
+
+  async addAdmin(newAdminAddress: string): Promise<ethers.ContractTransactionResponse> {
+    if (!this.contract) {
+      throw new Error("Contract not initialized. Call connect() first.")
+    }
+    return await this.contract.addAdmin(newAdminAddress)
+  }
+
+  async removeAdmin(adminAddress: string): Promise<ethers.ContractTransactionResponse> {
+    if (!this.contract) {
+      throw new Error("Contract not initialized. Call connect() first.")
+    }
+    return await this.contract.removeAdmin(adminAddress)
+  }
+
+  async isAdmin(address: string): Promise<boolean> {
+    const contract = this.contract || new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.provider)
+    return await contract.isAdmin(address)
+  }
+
+  async citizenshipPending(address: string): Promise<boolean> {
+    const contract = this.contract || new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.provider)
+    return await contract.citizenshipPending(address)
+  }
+
+  async citizenshipRejected(address: string): Promise<boolean> {
+    const contract = this.contract || new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.provider)
+    return await contract.citizenshipRejected(address)
+  }
+
+  async getAdmin(): Promise<string> {
+    const contract = this.contract || new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.provider)
+    return await contract.admin()
   }
 
   async isCitizen(address: string): Promise<boolean> {
@@ -166,6 +220,27 @@ export class InfinifundContract {
 
     this.contract.on("ProjectSubmitted", (projectId, creator) => {
       callback(Number(projectId), creator)
+    })
+  }
+
+  onCitizenshipRequested(callback: (user: string) => void) {
+    if (!this.contract) return
+    this.contract.on("CitizenshipRequested", (user) => {
+      callback(user)
+    })
+  }
+
+  onCitizenshipApproved(callback: (user: string) => void) {
+    if (!this.contract) return
+    this.contract.on("CitizenshipApproved", (user) => {
+      callback(user)
+    })
+  }
+
+  onCitizenshipRejected(callback: (user: string) => void) {
+    if (!this.contract) return
+    this.contract.on("CitizenshipRejected", (user) => {
+      callback(user)
     })
   }
 
