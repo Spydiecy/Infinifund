@@ -4,9 +4,9 @@ import { motion } from "framer-motion"
 import Image from "next/image"
 
 const companies = [
-  { name: "Versatile", logo: "https://static-files.risein.com/Homepage-Sui.png" },
-  { name: "Circle", logo: "https://static-files.risein.com/Circle.png" },
-  { name: "Paribuhub", logo: "https://static-files.risein.com/Homepage-SolanaFoundation.png" },
+  { name: "Versatile", logo: "https://www.base.org/document/apple-touch-icon.png" },
+  { name: "Circle", logo: "https://www.base.org/document/apple-touch-icon.png" },
+  { name: "Paribuhub", logo: "https://www.base.org/document/apple-touch-icon.png" },
   { name: "Edu Chain", logo: "https://static-files.risein.com/animoca.png" },
   { name: "Aptos", logo: "https://static-files.risein.com/Homepage-Sui.png" },
 ]

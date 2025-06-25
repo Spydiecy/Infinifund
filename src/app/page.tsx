@@ -5,7 +5,7 @@ import { CoverDemo } from "./components/HomePageComponents/SecSection/SecondSect
 import { WobbleCardDemo } from "./components/HomePageComponents/ThirdSection/WobbleCardDemo";
 import { InfiniteMovingCards } from "./components/HomePageComponents/FourthSection/infinite-moving-cards";
 import { InfiniteMovingCardsDemo } from "./components/HomePageComponents/FourthSection/InfiniteCardsDemo";
-import { FocusCardsDemo } from "./components/HomePageComponents/FifthSection/FocusCardsDemo";import Earth from "./components/HomePageComponents/earth";
+import Earth from "./components/HomePageComponents/earth";
 import GlobeWithSparkles from "./components/HomePageComponents/layout-globe";
 import LastBrand from "./components/HomePageComponents/LastSection/trust-brand";
 0
@@ -29,7 +29,6 @@ export default function Home() {
       </h1>
   </center>
   <br /><br />
-   <FocusCardsDemo></FocusCardsDemo> 
   <InfiniteMovingCardsDemo></InfiniteMovingCardsDemo>
     <LastBrand></LastBrand>
    </div>
