@@ -17,13 +17,15 @@ import type { ProjectData } from "@/lib/infinifund-contract"
 import { PinataSDK } from "pinata"
 import { GoogleGenAI } from "@google/genai"
 import { toast } from "sonner"
+import { ethers } from "ethers"
+import { useInfinifundContract } from "@/hooks/use-infinifund-contract"
 
 const pinata = new PinataSDK({
   pinataJwt: process.env.NEXT_PUBLIC_PINATA_KEY,
   pinataGateway: "example-gateway.mypinata.cloud",
 })
 
-const ai = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY || "AIzaSyBH8eOslqPe7kzKL5YEeIcCV79ZlNCVryg" })
+const ai = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY || "YOUR_API_KEY" })
 
 interface Milestone {
   id: string
@@ -49,7 +51,8 @@ const initialFormData: FormData = {
   fundingDuration: 30,
 }
 
-const DUMMY_ADDRESS = "0x99Fc756303cf86F0D15a0C5a2b784dc26f627871"
+// Remove this line:
+// const DUMMY_ADDRESS = "0x742d35Cc6634C0532925a3b8D4C9db96C4b4d4d4"
 
 const INFINITA_CITY_PROMPT = `
 You are an AI reviewer for Infinita City - "The City That Never Dies" - a pioneering network city in Próspera, Roatán, Honduras, dedicated to advancing human longevity and frontier technology.
@@ -94,15 +97,50 @@ export default function CreateProject() {
   const [showReviewModal, setShowReviewModal] = useState(false)
   const [aiReview, setAiReview] = useState<AIReviewResult | null>(null)
   const [acceptedTerms, setAcceptedTerms] = useState(false)
-  const [isConnected, setIsConnected] = useState(false)
   const [userAddress, setUserAddress] = useState<string>("")
+  const [isConnected, setIsConnected] = useState(false)
   const [isCitizen, setIsCitizen] = useState(false)
+  const infinifundContract = useInfinifundContract()
 
   useEffect(() => {
-    setUserAddress(DUMMY_ADDRESS)
-    setIsConnected(true)
-    setIsCitizen(true)
+    checkConnection()
   }, [])
+
+  const checkConnection = async () => {
+    if (typeof window !== "undefined" && window.ethereum) {
+      try {
+        const accounts = await window.ethereum.request({ method: "eth_accounts" })
+        if (accounts.length > 0) {
+          setUserAddress(accounts[0])
+          setIsConnected(true)
+          // Check citizenship status
+          if (infinifundContract) {
+            const citizenStatus = await infinifundContract.isCitizen(accounts[0])
+            setIsCitizen(citizenStatus)
+          }
+        }
+      } catch (error) {
+        console.error("Error checking connection:", error)
+      }
+    }
+  }
+
+  const connectWallet = async () => {
+    try {
+      const address = await infinifundContract.connect()
+      setUserAddress(address)
+      setIsConnected(true)
+
+      const citizenStatus = await infinifundContract.isCitizen(address)
+      setIsCitizen(citizenStatus)
+
+      if (!citizenStatus) {
+        toast.warning("You need to be a citizen to submit projects. Please request citizenship first.")
+      }
+    } catch (error: any) {
+      toast.error("Failed to connect wallet: " + error.message)
+    }
+  }
 
   const handleAddMilestone = () => {
     const newMilestone: Milestone = {
@@ -133,23 +171,30 @@ export default function CreateProject() {
       .replace("{milestones}", milestones.map((m) => m.description).join("; "))
 
     try {
-      const response:any = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
-        contents: prompt,
-      })
-      console.log("my Response is::::::::::::",response);
       
-      const result = JSON.parse(response)
-      return result
-    } catch (error) {
-      console.error("AI Review Error:", error)
-      // Fallback response
+      const result = await ai.models.generateContent({ 
+      model: "gemini-2.5-flash",
+    contents: "Explain how AI works in a few words",
+       })
+      // const response = await result.text
+      const text:any = result.text
+
+      // Parse JSON response
+      const jsonMatch = text.match(/\{[\s\S]*\}/)
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[0])
+      }
+
+      // Fallback if no JSON found
       return {
         approved: true,
-        feedback: "AI review temporarily unavailable. Project approved for manual review.",
+        feedback: text,
         score: 75,
-        suggestions: ["Consider adding more technical details", "Expand on the innovation aspects"],
+        suggestions: ["Consider adding more technical details"],
       }
+    } catch (error) {
+      console.error("AI Review Error:", error)
+      throw new Error("Failed to review project with AI. Please try again.")
     }
   }
 
@@ -184,6 +229,11 @@ export default function CreateProject() {
       return
     }
 
+    if (!isConnected) {
+      toast.error("Please connect your wallet first")
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
@@ -194,12 +244,12 @@ export default function CreateProject() {
 
       if (iconFile) {
         const iconUpload = await pinata.upload.file(iconFile)
-        iconHash = iconUpload.cid
+        iconHash = `ipfs://${iconUpload.cid}`
       }
 
       if (bannerFile) {
         const bannerUpload = await pinata.upload.file(bannerFile)
-        bannerHash = bannerUpload.cid
+        bannerHash = `ipfs://${bannerUpload.cid}`
       }
 
       const projectData: ProjectData = {
@@ -213,15 +263,26 @@ export default function CreateProject() {
 
       toast.info("🚀 Submitting to Infinita City blockchain...")
 
-      console.log("Project data for Infinita City:", projectData)
-      console.log("Using address:", DUMMY_ADDRESS)
+      // Real contract interaction
+      const tx = await infinifundContract.submitProject(projectData)
 
-      await new Promise((resolve) => setTimeout(resolve, 3000))
+      toast.info("⏳ Transaction submitted. Waiting for confirmation...")
 
-      const mockProjectId = Math.floor(Math.random() * 1000) + 1
+      const receipt = await tx.wait()
 
-      toast.success(`🎉 Project submitted to Infinita City! Project ID: ${mockProjectId}`)
+      // Get project ID from transaction logs
+      const projectSubmittedEvent = receipt.logs.find(
+        (log: any) => log.topics[0] === ethers.id("ProjectSubmitted(uint256,address)"),
+      )
 
+      let projectId = "Unknown"
+      if (projectSubmittedEvent) {
+        projectId = ethers.toNumber(projectSubmittedEvent.topics[1])
+      }
+
+      toast.success(`🎉 Project submitted successfully! Project ID: ${projectId}`)
+
+      // Reset form
       setFormData(initialFormData)
       setIconFile(null)
       setBannerFile(null)
@@ -238,7 +299,7 @@ export default function CreateProject() {
   }
 
   return (
-    <div className="min-h-screen bg-black relative overflow-hidden mt-14">
+    <div className="min-h-screen bg-black relative overflow-hidden">
       {/* Animated Background */}
       <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-black to-purple-900/20" />
       <div className="absolute inset-0">
@@ -288,6 +349,15 @@ export default function CreateProject() {
                     <Sparkles className="h-4 w-4" />
                     <span className="text-sm">Próspera, Roatán Hub</span>
                   </div>
+                  {!isConnected && (
+                    <Button
+                      onClick={connectWallet}
+                      variant="outline"
+                      className="bg-white/10 border-white/20 text-white"
+                    >
+                      Connect Wallet
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>

@@ -1,239 +1,157 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { motion, AnimatePresence } from "framer-motion"
-import { Upload, Calendar, Users, Target, Sparkles, CheckCircle, XCircle, Brain, Rocket, Zap } from "lucide-react"
+import { motion } from "framer-motion"
+import {
+  Rocket,
+  Calendar,
+  DollarSign,
+  Target,
+  Clock,
+  CheckCircle,
+  XCircle,
+  Eye,
+  Heart,
+  Share2,
+  Zap,
+  TrendingUp,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Checkbox } from "@/components/ui/checkbox"
-import { FileUpload } from "@/components/file-upload"
-import { MilestoneInput } from "@/components/milestone-input"
-import type { ProjectData } from "@/lib/infinifund-contract"
-import { PinataSDK } from "pinata"
-import { GoogleGenAI } from "@google/genai"
+import { Badge } from "@/components/ui/badge"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Progress } from "@/components/ui/progress"
+import { infinifundContract, type Project } from "@/lib/infinifund-contract"
 import { toast } from "sonner"
+import Image from "next/image"
+import Link from "next/link"
 
-const pinata = new PinataSDK({
-  pinataJwt: process.env.NEXT_PUBLIC_PINATA_KEY,
-  pinataGateway: "example-gateway.mypinata.cloud",
-})
-
-const ai = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY || "YOUR_API_KEY" })
-
-interface Milestone {
-  id: string
-  description: string
-}
-
-interface FormData {
-  name: string
-  details: string
-  fundingDuration: number
-}
-
-interface AIReviewResult {
-  approved: boolean
-  feedback: string
-  score: number
-  suggestions: string[]
-}
-
-const initialFormData: FormData = {
-  name: "",
-  details: "",
-  fundingDuration: 30,
-}
-
-const DUMMY_ADDRESS = "0x742d35Cc6634C0532925a3b8D4C9db96C4b4d4d4"
-
-const INFINITA_CITY_PROMPT = `
-You are an AI reviewer for Infinita City - "The City That Never Dies" - a pioneering network city in Próspera, Roatán, Honduras, dedicated to advancing human longevity and frontier technology.
-
-INFINITA CITY MISSION:
-- Accelerate breakthroughs in Biotechnology and Longevity Science
-- Advance Computational Science and AI
-- Pioneer Cybernetics and Human Enhancement
-- Foster Decentralized Science (DeSci) and Web3
-- Extend healthy human lifespan and redefine civilization's future
-
-EVALUATION CRITERIA:
-1. Alignment with longevity/biotech/AI/Web3/cybernetics themes
-2. Innovation potential and scientific merit
-3. Feasibility and realistic milestones
-4. Potential impact on human flourishing
-5. Fit with Infinita City's vision of technological acceleration
-
-RESPONSE FORMAT (JSON):
-{
-  "approved": boolean,
-  "feedback": "Detailed explanation of decision",
-  "score": number (1-100),
-  "suggestions": ["improvement suggestion 1", "suggestion 2", "suggestion 3"]
-}
-
-PROJECT TO REVIEW:
-Name: {projectName}
-Description: {projectDetails}
-Milestones: {milestones}
-
-Provide your evaluation as JSON only.
-`
-
-export default function CreateProject() {
-  const [iconFile, setIconFile] = useState<File | null>(null)
-  const [bannerFile, setBannerFile] = useState<File | null>(null)
-  const [milestones, setMilestones] = useState<Milestone[]>([{ id: "1", description: "" }])
-  const [formData, setFormData] = useState<FormData>(initialFormData)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isReviewing, setIsReviewing] = useState(false)
-  const [showReviewModal, setShowReviewModal] = useState(false)
-  const [aiReview, setAiReview] = useState<AIReviewResult | null>(null)
-  const [acceptedTerms, setAcceptedTerms] = useState(false)
-  const [isConnected, setIsConnected] = useState(false)
+export default function ProjectsPage() {
+  const [projects, setProjects] = useState<Project[]>([])
+  const [loading, setLoading] = useState(true)
+  const [filter, setFilter] = useState<"all" | "approved" | "pending">("all")
   const [userAddress, setUserAddress] = useState<string>("")
-  const [isCitizen, setIsCitizen] = useState(false)
+  const [isConnected, setIsConnected] = useState(false)
 
   useEffect(() => {
-    setUserAddress(DUMMY_ADDRESS)
-    setIsConnected(true)
-    setIsCitizen(true)
+    loadProjects()
+    checkConnection()
   }, [])
 
-  const handleAddMilestone = () => {
-    const newMilestone: Milestone = {
-      id: Math.random().toString(),
-      description: "",
-    }
-    setMilestones([...milestones, newMilestone])
-  }
-
-  const handleRemoveMilestone = (id: string) => {
-    setMilestones(milestones.filter((milestone) => milestone.id !== id))
-  }
-
-  const handleMilestoneChange = (id: string, description: string) => {
-    setMilestones(milestones.map((milestone) => (milestone.id === id ? { ...milestone, description } : milestone)))
-  }
-
-  const handleInputChange = (field: keyof FormData, value: string | number) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }))
-  }
-
-  const reviewWithAI = async (): Promise<AIReviewResult> => {
-    const prompt = INFINITA_CITY_PROMPT.replace("{projectName}", formData.name)
-      .replace("{projectDetails}", formData.details)
-      .replace("{milestones}", milestones.map((m) => m.description).join("; "))
-
-    try {
-      const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash-exp",
-        contents: prompt,
-      })
-
-      const result = JSON.parse(response.text)
-      return result
-    } catch (error) {
-      console.error("AI Review Error:", error)
-      // Fallback response
-      return {
-        approved: true,
-        feedback: "AI review temporarily unavailable. Project approved for manual review.",
-        score: 75,
-        suggestions: ["Consider adding more technical details", "Expand on the innovation aspects"],
+  const checkConnection = async () => {
+    if (typeof window !== "undefined" && window.ethereum) {
+      try {
+        const accounts = await window.ethereum.request({ method: "eth_accounts" })
+        if (accounts.length > 0) {
+          setUserAddress(accounts[0])
+          setIsConnected(true)
+        }
+      } catch (error) {
+        console.error("Error checking connection:", error)
       }
     }
   }
 
-  const handleAIReview = async () => {
-    if (!formData.name.trim() || !formData.details.trim() || milestones.some((m) => !m.description.trim())) {
-      toast.error("Please fill in all required fields before review")
-      return
-    }
-
-    if (!acceptedTerms) {
-      toast.error("Please accept the terms and conditions")
-      return
-    }
-
-    setIsReviewing(true)
-    toast.info("🧠 AI is reviewing your project for Infinita City alignment...")
-
+  const loadProjects = async () => {
     try {
-      const review = await reviewWithAI()
-      setAiReview(review)
-      setShowReviewModal(true)
+      setLoading(true)
+      const allProjects = await infinifundContract.getAllProjects()
+      setProjects(allProjects)
     } catch (error) {
-      toast.error("Failed to review project. Please try again.")
+      console.error("Error loading projects:", error)
+      toast.error("Failed to load projects")
     } finally {
-      setIsReviewing(false)
+      setLoading(false)
     }
   }
 
-  const handleFinalSubmit = async () => {
-    if (!aiReview?.approved) {
-      toast.error("Project must be approved by AI review first")
-      return
-    }
-
-    setIsSubmitting(true)
-
+  const connectWallet = async () => {
     try {
-      toast.info("📤 Uploading files to IPFS...")
-
-      let iconHash = ""
-      let bannerHash = ""
-
-      if (iconFile) {
-        const iconUpload = await pinata.upload.file(iconFile)
-        iconHash = iconUpload.cid
-      }
-
-      if (bannerFile) {
-        const bannerUpload = await pinata.upload.file(bannerFile)
-        bannerHash = bannerUpload.cid
-      }
-
-      const projectData: ProjectData = {
-        name: formData.name,
-        icon: iconHash,
-        banner: bannerHash,
-        details: formData.details,
-        milestoneDescriptions: milestones.map((m) => m.description),
-        fundingDuration: formData.fundingDuration * 24 * 60 * 60,
-      }
-
-      toast.info("🚀 Submitting to Infinita City blockchain...")
-
-      console.log("Project data for Infinita City:", projectData)
-      console.log("Using address:", DUMMY_ADDRESS)
-
-      await new Promise((resolve) => setTimeout(resolve, 3000))
-
-      const mockProjectId = Math.floor(Math.random() * 1000) + 1
-
-      toast.success(`🎉 Project submitted to Infinita City! Project ID: ${mockProjectId}`)
-
-      setFormData(initialFormData)
-      setIconFile(null)
-      setBannerFile(null)
-      setMilestones([{ id: "1", description: "" }])
-      setShowReviewModal(false)
-      setAiReview(null)
-      setAcceptedTerms(false)
+      const address = await infinifundContract.connect()
+      setUserAddress(address)
+      setIsConnected(true)
+      toast.success("Wallet connected successfully!")
     } catch (error: any) {
-      console.error("Error submitting project:", error)
-      toast.error(error.message || "Failed to submit project")
-    } finally {
-      setIsSubmitting(false)
+      toast.error("Failed to connect wallet: " + error.message)
     }
+  }
+
+  const handleVote = async (projectId: number, approve: boolean) => {
+    if (!isConnected) {
+      toast.error("Please connect your wallet to vote")
+      return
+    }
+
+    try {
+      toast.info("Submitting vote...")
+      const tx = await infinifundContract.voteScreening(projectId, approve)
+      await tx.wait()
+      toast.success(`Vote ${approve ? "approved" : "rejected"} successfully!`)
+      loadProjects() // Refresh projects
+    } catch (error: any) {
+      toast.error("Failed to vote: " + error.message)
+    }
+  }
+
+  const handleFund = async (projectId: number, amount: string) => {
+    if (!isConnected) {
+      toast.error("Please connect your wallet to fund")
+      return
+    }
+
+    try {
+      toast.info("Processing funding...")
+      const tx = await infinifundContract.fundProject(projectId, amount)
+      await tx.wait()
+      toast.success("Project funded successfully!")
+      loadProjects() // Refresh projects
+    } catch (error: any) {
+      toast.error("Failed to fund project: " + error.message)
+    }
+  }
+
+  const filteredProjects = projects.filter((project) => {
+    if (filter === "approved") return project.approvedForFunding
+    if (filter === "pending") return !project.approvedForFunding
+    return true
+  })
+
+  const formatEther = (wei: string) => {
+    try {
+      return Number.parseFloat(wei) / 1e18
+    } catch {
+      return 0
+    }
+  }
+
+  const getProjectStatus = (project: Project) => {
+    if (project.fundingExpired) return "expired"
+    if (project.approvedForFunding) return "approved"
+    return "pending"
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "approved":
+        return "bg-green-500/20 text-green-300 border-green-500/30"
+      case "pending":
+        return "bg-yellow-500/20 text-yellow-300 border-yellow-500/30"
+      case "expired":
+        return "bg-red-500/20 text-red-300 border-red-500/30"
+      default:
+        return "bg-gray-500/20 text-gray-300 border-gray-500/30"
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-white text-xl">Loading Infinita City Projects...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -246,305 +164,252 @@ export default function CreateProject() {
       </div>
 
       <div className="relative z-10 p-6">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-7xl mx-auto">
           {/* Header */}
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-12">
             <div className="flex items-center justify-center gap-3 mb-4">
               <Zap className="h-8 w-8 text-blue-400" />
               <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-400 via-white to-purple-400 bg-clip-text text-transparent">
-                Infinita City
+                Infinita City Projects
               </h1>
-              <Rocket className="h-8 w-8 text-purple-400" />
+              <TrendingUp className="h-8 w-8 text-purple-400" />
             </div>
-            <p className="text-xl text-blue-300 mb-2">"The City That Never Dies"</p>
+            <p className="text-xl text-blue-300 mb-2">Breakthrough innovations advancing human longevity</p>
             <p className="text-gray-300 text-lg max-w-3xl mx-auto">
-              Submit your breakthrough project to advance human longevity, AI, biotechnology, and frontier science in
-              Próspera, Roatán
+              Discover and support cutting-edge projects in biotechnology, AI, and frontier science
             </p>
           </motion.div>
 
-          {/* Connection Status */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-            <Card className="mb-8 bg-gray-900/50 border-blue-500/30 backdrop-blur-sm">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div
-                      className={`w-4 h-4 rounded-full ${isConnected ? "bg-green-400" : "bg-red-400"} animate-pulse`}
-                    />
-                    <span className="text-white font-medium">
-                      {isConnected
-                        ? `Connected: ${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`
-                        : "Not Connected"}
-                    </span>
-                    {isConnected && (
-                      <span className="px-3 py-1 rounded-full text-xs bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                        {isCitizen ? "✓ Infinita Citizen" : "Pending Citizenship"}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 text-blue-300">
-                    <Sparkles className="h-4 w-4" />
-                    <span className="text-sm">Próspera, Roatán Hub</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          <div className="grid lg:grid-cols-2 gap-8">
-            {/* Left Column */}
-            <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+          {/* Stats and Controls */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
               <Card className="bg-gray-900/50 border-blue-500/30 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle className="text-white flex items-center gap-2">
-                    <Upload className="h-5 w-5 text-blue-400" />
-                    Project Assets
-                  </CardTitle>
-                  <CardDescription className="text-gray-300">
-                    Upload your project visuals for the Infinita City ecosystem
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <FileUpload onFileSelect={setIconFile} label="Project Icon *" accept="image/*" />
-                  <FileUpload onFileSelect={setBannerFile} label="Banner Image" accept="image/*" />
+                <CardContent className="p-4 text-center">
+                  <div className="text-2xl font-bold text-blue-400">{projects.length}</div>
+                  <div className="text-sm text-gray-300">Total Projects</div>
                 </CardContent>
               </Card>
-
-              <Card className="bg-gray-900/50 border-purple-500/30 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle className="text-white flex items-center gap-2">
-                    <Calendar className="h-5 w-5 text-purple-400" />
-                    Funding Timeline
-                  </CardTitle>
-                  <CardDescription className="text-gray-300">
-                    Set your project's funding duration in the Infinita ecosystem
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Label className="text-gray-300">Duration (Days)</Label>
-                  <Select
-                    value={formData.fundingDuration.toString()}
-                    onValueChange={(value) => handleInputChange("fundingDuration", Number.parseInt(value))}
-                  >
-                    <SelectTrigger className="bg-black/50 border-gray-600 text-white">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-gray-900 border-gray-600">
-                      <SelectItem value="7">7 Days - Sprint</SelectItem>
-                      <SelectItem value="14">14 Days - Rapid</SelectItem>
-                      <SelectItem value="30">30 Days - Standard</SelectItem>
-                      <SelectItem value="60">60 Days - Extended</SelectItem>
-                      <SelectItem value="90">90 Days - Long-term</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </CardContent>
-              </Card>
-            </motion.div>
-
-            {/* Right Column */}
-            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
               <Card className="bg-gray-900/50 border-green-500/30 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle className="text-white flex items-center gap-2">
-                    <Target className="h-5 w-5 text-green-400" />
-                    Project Details
-                  </CardTitle>
-                  <CardDescription className="text-gray-300">
-                    Describe your breakthrough innovation for Infinita City
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label className="text-gray-300">Project Name *</Label>
-                    <Input
-                      value={formData.name}
-                      onChange={(e) => handleInputChange("name", e.target.value)}
-                      placeholder="Your revolutionary project name"
-                      className="bg-black/50 border-gray-600 text-white placeholder-gray-400 focus:border-blue-500"
-                    />
+                <CardContent className="p-4 text-center">
+                  <div className="text-2xl font-bold text-green-400">
+                    {projects.filter((p) => p.approvedForFunding).length}
                   </div>
-
-                  <div>
-                    <Label className="text-gray-300">Project Description *</Label>
-                    <Textarea
-                      value={formData.details}
-                      onChange={(e) => handleInputChange("details", e.target.value)}
-                      placeholder="Describe how your project advances longevity, AI, biotech, or frontier science..."
-                      className="bg-black/50 border-gray-600 text-white placeholder-gray-400 min-h-[120px] focus:border-blue-500"
-                    />
-                  </div>
+                  <div className="text-sm text-gray-300">Approved</div>
                 </CardContent>
               </Card>
-
               <Card className="bg-gray-900/50 border-yellow-500/30 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle className="text-white flex items-center gap-2">
-                    <Users className="h-5 w-5 text-yellow-400" />
-                    Development Milestones
-                  </CardTitle>
-                  <CardDescription className="text-gray-300">Define your project's breakthrough phases</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <MilestoneInput
-                    milestones={milestones}
-                    onAdd={handleAddMilestone}
-                    onRemove={handleRemoveMilestone}
-                    onChange={handleMilestoneChange}
-                  />
+                <CardContent className="p-4 text-center">
+                  <div className="text-2xl font-bold text-yellow-400">
+                    {projects.filter((p) => !p.approvedForFunding && !p.fundingExpired).length}
+                  </div>
+                  <div className="text-sm text-gray-300">Pending</div>
                 </CardContent>
               </Card>
-            </motion.div>
-          </div>
-
-          {/* Terms and Conditions */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mt-8">
-            <Card className="bg-gray-900/50 border-gray-600/30 backdrop-blur-sm">
-              <CardContent className="p-6">
-                <div className="flex items-start space-x-3">
-                  <Checkbox
-                    id="terms"
-                    checked={acceptedTerms}
-                    onCheckedChange={setAcceptedTerms}
-                    className="border-gray-500 data-[state=checked]:bg-blue-500"
-                  />
-                  <div className="text-sm text-gray-300">
-                    <label htmlFor="terms" className="cursor-pointer">
-                      I agree to the{" "}
-                      <span className="text-blue-400 hover:underline">Infinita City Terms of Service</span> and{" "}
-                      <span className="text-blue-400 hover:underline">Privacy Policy</span>. I understand that my
-                      project will be reviewed for alignment with Infinita City's mission of advancing human longevity
-                      and frontier technology.
-                    </label>
+              <Card className="bg-gray-900/50 border-purple-500/30 backdrop-blur-sm">
+                <CardContent className="p-4 text-center">
+                  <div className="text-2xl font-bold text-purple-400">
+                    {formatEther(
+                      projects.reduce((sum, p) => sum + Number.parseFloat(p.totalFunds || "0"), 0).toString(),
+                    ).toFixed(2)}{" "}
+                    ETH
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
+                  <div className="text-sm text-gray-300">Total Funded</div>
+                </CardContent>
+              </Card>
+            </div>
 
-          {/* Action Buttons */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mt-8 text-center space-y-4"
-          >
-            <Button
-              onClick={handleAIReview}
-              disabled={isReviewing || !acceptedTerms}
-              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3 text-lg font-semibold disabled:opacity-50 mr-4"
-              size="lg"
-            >
-              {isReviewing ? (
-                <>
-                  <Brain className="h-5 w-5 mr-2 animate-spin" />
-                  AI Reviewing...
-                </>
-              ) : (
-                <>
-                  <Brain className="h-5 w-5 mr-2" />
-                  Review with AI
-                </>
-              )}
-            </Button>
+            {/* Filter and Connect */}
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+              <div className="flex gap-2">
+                <Button
+                  variant={filter === "all" ? "default" : "outline"}
+                  onClick={() => setFilter("all")}
+                  className={filter === "all" ? "bg-blue-600" : "bg-gray-800 border-gray-600 text-white"}
+                >
+                  All Projects
+                </Button>
+                <Button
+                  variant={filter === "approved" ? "default" : "outline"}
+                  onClick={() => setFilter("approved")}
+                  className={filter === "approved" ? "bg-green-600" : "bg-gray-800 border-gray-600 text-white"}
+                >
+                  Approved
+                </Button>
+                <Button
+                  variant={filter === "pending" ? "default" : "outline"}
+                  onClick={() => setFilter("pending")}
+                  className={filter === "pending" ? "bg-yellow-600" : "bg-gray-800 border-gray-600 text-white"}
+                >
+                  Pending
+                </Button>
+              </div>
 
-            <p className="text-gray-400 text-sm max-w-2xl mx-auto">
-              Our AI will evaluate your project's alignment with Infinita City's mission of advancing human longevity,
-              biotechnology, AI, and frontier science in Próspera, Roatán.
-            </p>
-          </motion.div>
-        </div>
-      </div>
-
-      {/* AI Review Modal */}
-      <AnimatePresence>
-        {showReviewModal && aiReview && (
-          <Dialog open={showReviewModal} onOpenChange={setShowReviewModal}>
-            <DialogContent className="bg-gray-900 border-gray-700 text-white max-w-2xl">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-3 text-2xl">
-                  {aiReview.approved ? (
-                    <>
-                      <CheckCircle className="h-8 w-8 text-green-400" />
-                      <span className="bg-gradient-to-r from-green-400 to-blue-400 bg-clip-text text-transparent">
-                        Project Approved!
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <XCircle className="h-8 w-8 text-red-400" />
-                      <span className="text-red-400">Needs Improvement</span>
-                    </>
-                  )}
-                </DialogTitle>
-                <DialogDescription className="text-gray-300 text-lg">
-                  {aiReview.approved
-                    ? "🎉 Congratulations! Your project has passed our AI review and aligns with Infinita City's vision."
-                    : "Your project needs some improvements to align better with Infinita City's mission."}
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="space-y-6">
-                {/* Score */}
-                <div className="text-center">
-                  <div className="text-4xl font-bold text-blue-400 mb-2">{aiReview.score}/100</div>
-                  <div className="text-gray-300">Infinita City Alignment Score</div>
-                </div>
-
-                {/* Feedback */}
-                <div className="bg-black/50 p-4 rounded-lg border border-gray-700">
-                  <h4 className="font-semibold text-white mb-2">AI Feedback:</h4>
-                  <p className="text-gray-300">{aiReview.feedback}</p>
-                </div>
-
-                {/* Suggestions */}
-                {aiReview.suggestions.length > 0 && (
-                  <div className="bg-blue-900/20 p-4 rounded-lg border border-blue-500/30">
-                    <h4 className="font-semibold text-blue-300 mb-2">Suggestions for Improvement:</h4>
-                    <ul className="space-y-1">
-                      {aiReview.suggestions.map((suggestion, index) => (
-                        <li key={index} className="text-gray-300 flex items-start gap-2">
-                          <span className="text-blue-400 mt-1">•</span>
-                          {suggestion}
-                        </li>
-                      ))}
-                    </ul>
+              <div className="flex items-center gap-4">
+                {isConnected ? (
+                  <div className="flex items-center gap-2 text-green-400">
+                    <CheckCircle className="h-4 w-4" />
+                    <span className="text-sm">
+                      {userAddress.slice(0, 6)}...{userAddress.slice(-4)}
+                    </span>
                   </div>
+                ) : (
+                  <Button onClick={connectWallet} className="bg-blue-600 hover:bg-blue-700">
+                    Connect Wallet
+                  </Button>
                 )}
+                <Link href="/create-project">
+                  <Button className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
+                    <Rocket className="h-4 w-4 mr-2" />
+                    Submit Project
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </motion.div>
 
-                {/* Action Buttons */}
-                <div className="flex gap-4 justify-center">
-                  {aiReview.approved ? (
-                    <Button
-                      onClick={handleFinalSubmit}
-                      disabled={isSubmitting}
-                      className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white px-6 py-2"
-                    >
-                      {isSubmitting ? (
+          {/* Projects Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredProjects.map((project, index) => (
+              <motion.div
+                key={project.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+              >
+                <Card className="bg-gray-900/50 border-gray-700/50 backdrop-blur-sm hover:border-blue-500/50 transition-all duration-300 h-full">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-10 w-10 bg-gradient-to-r from-blue-500 to-purple-500">
+                          <AvatarFallback className="text-white font-bold">{project.name.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <CardTitle className="text-white text-lg">{project.name}</CardTitle>
+                          <CardDescription className="text-gray-400 text-sm">
+                            by {project.creator.slice(0, 6)}...{project.creator.slice(-4)}
+                          </CardDescription>
+                        </div>
+                      </div>
+                      <Badge className={getStatusColor(getProjectStatus(project))}>{getProjectStatus(project)}</Badge>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent className="space-y-4">
+                    {/* Project Image */}
+                    {project.banner && (
+                      <div className="relative h-32 w-full rounded-lg overflow-hidden bg-gray-800">
+                        <Image
+                          src={
+                            project.banner.startsWith("ipfs://")
+                              ? `https://gateway.pinata.cloud/ipfs/${project.banner.replace("ipfs://", "")}`
+                              : project.banner
+                          }
+                          alt={project.name}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                    )}
+
+                    {/* Description */}
+                    <p className="text-gray-300 text-sm line-clamp-3">{project.details}</p>
+
+                    {/* Stats */}
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="flex items-center gap-2 text-blue-400">
+                        <DollarSign className="h-4 w-4" />
+                        <span>{formatEther(project.totalFunds).toFixed(4)} ETH</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-purple-400">
+                        <Target className="h-4 w-4" />
+                        <span>{project.milestoneCount} Milestones</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-green-400">
+                        <Clock className="h-4 w-4" />
+                        <span>Phase {project.currentMilestone + 1}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-yellow-400">
+                        <Calendar className="h-4 w-4" />
+                        <span>{new Date(project.fundingDeadline * 1000).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+
+                    {/* Progress */}
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-400">Progress</span>
+                        <span className="text-white">
+                          {Math.round((project.currentMilestone / project.milestoneCount) * 100)}%
+                        </span>
+                      </div>
+                      <Progress value={(project.currentMilestone / project.milestoneCount) * 100} className="h-2" />
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex gap-2 pt-2">
+                      {!project.approvedForFunding && isConnected && (
                         <>
-                          <Rocket className="h-4 w-4 mr-2 animate-bounce" />
-                          Submitting to Blockchain...
-                        </>
-                      ) : (
-                        <>
-                          <Rocket className="h-4 w-4 mr-2" />
-                          Submit to Infinita City
+                          <Button
+                            size="sm"
+                            onClick={() => handleVote(project.id, true)}
+                            className="bg-green-600 hover:bg-green-700 flex-1"
+                          >
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleVote(project.id, false)}
+                            className="border-red-500 text-red-400 hover:bg-red-500/10 flex-1"
+                          >
+                            <XCircle className="h-4 w-4 mr-1" />
+                            Reject
+                          </Button>
                         </>
                       )}
-                    </Button>
-                  ) : (
-                    <Button
-                      onClick={() => setShowReviewModal(false)}
-                      className="bg-gray-700 hover:bg-gray-600 text-white px-6 py-2"
-                    >
-                      Improve Project
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-        )}
-      </AnimatePresence>
+
+                      {project.approvedForFunding && isConnected && (
+                        <Button
+                          size="sm"
+                          onClick={() => handleFund(project.id, "0.01")}
+                          className="bg-blue-600 hover:bg-blue-700 flex-1"
+                        >
+                          <Heart className="h-4 w-4 mr-1" />
+                          Fund 0.01 ETH
+                        </Button>
+                      )}
+
+                      <Button size="sm" variant="outline" className="border-gray-600 text-gray-300">
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button size="sm" variant="outline" className="border-gray-600 text-gray-300">
+                        <Share2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+
+          {filteredProjects.length === 0 && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-12">
+              <Rocket className="h-16 w-16 text-gray-600 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-white mb-2">No Projects Found</h3>
+              <p className="text-gray-400 mb-6">
+                {filter === "all" ? "No projects have been submitted yet." : `No ${filter} projects found.`}
+              </p>
+              <Link href="/create-project">
+                <Button className="bg-gradient-to-r from-blue-600 to-purple-600">
+                  <Rocket className="h-4 w-4 mr-2" />
+                  Submit First Project
+                </Button>
+              </Link>
+            </motion.div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
