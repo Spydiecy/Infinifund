@@ -288,15 +288,17 @@ export default function CreateProject() {
   // }
 
   const handleFinalSubmit = async () => {
-    if (!aiReview?.approved) {
-      toast.error("Project must be approved by AI review first")
-      return
-    }
+    console.log("Handle ai submit is running....");
+    
+    // if (!aiReview?.approved) {
+    //   toast.error("Project must be approved by AI review first")
+    //   return
+    // }
 
-    if (!isConnected) {
-      toast.error("Please connect your wallet first")
-      return
-    }
+    // if (!isConnected) {
+    //   toast.error("Please connect your wallet first")
+    //   return
+    // }
 
     setIsSubmitting(true)
 
@@ -594,7 +596,7 @@ export default function CreateProject() {
       <AnimatePresence>
         {showReviewModal && aiReview && (
           <Dialog open={showReviewModal} onOpenChange={setShowReviewModal}>
-            <DialogContent className="bg-gray-900 border-gray-700 text-white max-w-2xl">
+            <DialogContent className="bg-gray-900 border-gray-700 text-white max-w-2xl overflow-y-scroll">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-3 text-2xl">
                   {aiReview.approved ? (
@@ -618,7 +620,7 @@ export default function CreateProject() {
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="space-y-6">
+              <div className="space-y-6 overflow-y-scroll">
                 {/* Score */}
                 <div className="text-center">
                   <div className="text-4xl font-bold text-blue-400 mb-2">{aiReview.score}/100</div>
@@ -626,10 +628,10 @@ export default function CreateProject() {
                 </div>
 
                 {/* Feedback */}
-                <div className="bg-black/50 p-4 rounded-lg border border-gray-700">
-                  <h4 className="font-semibold text-white mb-2">AI Feedback:</h4>
-                  <p className="text-gray-300">{aiReview.feedback}</p>
-                </div>
+                  {/* <div className="bg-black/50 p-4 rounded-lg border border-gray-700">
+                    <h4 className="font-semibold text-white mb-2">AI Feedback:</h4>
+                    <p className="text-gray-300">{aiReview.feedback}</p>
+                  </div> */}
 
                 {/* Suggestions */}
                 {aiReview.suggestions.length > 0 && (
@@ -648,10 +650,10 @@ export default function CreateProject() {
 
                 {/* Action Buttons */}
                 <div className="flex gap-4 justify-center">
-                  {aiReview.approved ? (
+                  {true ? (
                     <Button
                       onClick={handleFinalSubmit}
-                      disabled={isSubmitting}
+                     
                       className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white px-6 py-2"
                     >
                       {isSubmitting ? (

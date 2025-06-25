@@ -1,9 +1,6 @@
 import { ethers } from "ethers"
 
-// Replace with your actual deployed contract address
 const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0x1234567890123456789012345678901234567890"
-
-// Import your actual ABI
 import contractABI from "./abi.json"
 
 export interface ProjectData {
@@ -29,6 +26,17 @@ export interface Project {
   fundingDeadline: number
   milestoneCount: number
   fundingExpired: boolean
+  investors: string[]
+  investments: { [address: string]: string }
+}
+
+export interface Milestone {
+  description: string
+  completed: boolean
+  fundsReleased: string
+  reportSubmitted: boolean
+  votesFor: number
+  votesAgainst: number
 }
 
 export class InfinifundContract {
@@ -47,6 +55,8 @@ export class InfinifundContract {
   }
 
   async connect(): Promise<string> {
+    console.log("Connect Function Running.........");
+    
     if (!this.provider) {
       throw new Error("No ethereum provider found. Please install MetaMask.")
     }
@@ -58,12 +68,33 @@ export class InfinifundContract {
     return await this.signer.getAddress()
   }
 
-  async submitProject(projectData: ProjectData): Promise<ethers.ContractTransactionResponse> {
-    if (!this.contract) {
-      throw new Error("Contract not initialized. Call connect() first.")
-    }
+  // Citizenship functions
+  async requestCitizenship(): Promise<ethers.ContractTransactionResponse> {
+    await this.connect();
+    if (!this.contract) throw new Error("Contract not initialized")
+    return await this.contract.requestCitizenship()
+  }
 
-    const tx = await this.contract.submitProject(
+  async approveCitizenship(userAddress: string): Promise<ethers.ContractTransactionResponse> {
+    if (!this.contract) throw new Error("Contract not initialized")
+    return await this.contract.approveCitizenship(userAddress)
+  }
+
+  async rejectCitizenship(userAddress: string): Promise<ethers.ContractTransactionResponse> {
+    if (!this.contract) throw new Error("Contract not initialized")
+    return await this.contract.rejectCitizenship(userAddress)
+  }
+
+  async revokeCitizenship(userAddress: string): Promise<ethers.ContractTransactionResponse> {
+    if (!this.contract) throw new Error("Contract not initialized")
+    return await this.contract.revokeCitizenship(userAddress)
+  }
+
+  // Project functions
+  async submitProject(projectData: ProjectData): Promise<ethers.ContractTransactionResponse> {
+    await this.connect()
+    if (!this.contract) throw new Error("Contract not initialized")
+    return await this.contract.submitProject(
       projectData.name,
       projectData.icon,
       projectData.banner,
@@ -71,55 +102,50 @@ export class InfinifundContract {
       projectData.milestoneDescriptions,
       projectData.fundingDuration,
     )
-
-    return tx
   }
 
-  async requestCitizenship(): Promise<ethers.ContractTransactionResponse> {
-    if (!this.contract) {
-      throw new Error("Contract not initialized. Call connect() first.")
-    }
-    return await this.contract.requestCitizenship()
+  async voteScreening(projectId: number, approve: boolean): Promise<ethers.ContractTransactionResponse> {
+    if (!this.contract) throw new Error("Contract not initialized")
+    return await this.contract.voteScreening(projectId, approve)
   }
 
-  async approveCitizenship(userAddress: string): Promise<ethers.ContractTransactionResponse> {
-    if (!this.contract) {
-      throw new Error("Contract not initialized. Call connect() first.")
-    }
-    return await this.contract.approveCitizenship(userAddress)
+  async finalizeScreening(projectId: number): Promise<ethers.ContractTransactionResponse> {
+    if (!this.contract) throw new Error("Contract not initialized")
+    return await this.contract.finalizeScreening(projectId)
   }
 
-  async rejectCitizenship(userAddress: string): Promise<ethers.ContractTransactionResponse> {
-    if (!this.contract) {
-      throw new Error("Contract not initialized. Call connect() first.")
-    }
-    return await this.contract.rejectCitizenship(userAddress)
+  async fundProject(projectId: number, amount: string): Promise<ethers.ContractTransactionResponse> {
+    if (!this.contract) throw new Error("Contract not initialized")
+    return await this.contract.fundProject(projectId, {
+      value: ethers.parseEther(amount),
+    })
   }
 
-  async revokeCitizenship(userAddress: string): Promise<ethers.ContractTransactionResponse> {
-    if (!this.contract) {
-      throw new Error("Contract not initialized. Call connect() first.")
-    }
-    return await this.contract.revokeCitizenship(userAddress)
+  // Milestone functions
+  async submitMilestoneReport(projectId: number): Promise<ethers.ContractTransactionResponse> {
+    if (!this.contract) throw new Error("Contract not initialized")
+    return await this.contract.submitMilestoneReport(projectId)
   }
 
-  async addAdmin(newAdminAddress: string): Promise<ethers.ContractTransactionResponse> {
-    if (!this.contract) {
-      throw new Error("Contract not initialized. Call connect() first.")
-    }
-    return await this.contract.addAdmin(newAdminAddress)
+  async voteMilestone(projectId: number, approve: boolean): Promise<ethers.ContractTransactionResponse> {
+    if (!this.contract) throw new Error("Contract not initialized")
+    return await this.contract.voteMilestone(projectId, approve)
   }
 
-  async removeAdmin(adminAddress: string): Promise<ethers.ContractTransactionResponse> {
-    if (!this.contract) {
-      throw new Error("Contract not initialized. Call connect() first.")
-    }
-    return await this.contract.removeAdmin(adminAddress)
+  async finalizeMilestone(projectId: number): Promise<ethers.ContractTransactionResponse> {
+    if (!this.contract) throw new Error("Contract not initialized")
+    return await this.contract.finalizeMilestone(projectId)
   }
 
-  async isAdmin(address: string): Promise<boolean> {
+  async requestBailout(projectId: number): Promise<ethers.ContractTransactionResponse> {
+    if (!this.contract) throw new Error("Contract not initialized")
+    return await this.contract.requestBailout(projectId)
+  }
+
+  // View functions
+  async isCitizen(address: string): Promise<boolean> {
     const contract = this.contract || new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.provider)
-    return await contract.isAdmin(address)
+    return await contract.isCitizen(address)
   }
 
   async citizenshipPending(address: string): Promise<boolean> {
@@ -132,28 +158,26 @@ export class InfinifundContract {
     return await contract.citizenshipRejected(address)
   }
 
+  async isAdmin(address: string): Promise<boolean> {
+    const contract = this.contract || new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.provider)
+    return await contract.isAdmin(address)
+  }
+
   async getAdmin(): Promise<string> {
     const contract = this.contract || new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.provider)
     return await contract.admin()
   }
 
-  async isCitizen(address: string): Promise<boolean> {
-    if (!this.contract) {
-      // Create read-only contract for view functions
-      if (!this.provider) {
-        throw new Error("No provider available")
-      }
-      const readOnlyContract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.provider)
-      return await readOnlyContract.isCitizen(address)
-    }
-
-    return await this.contract.isCitizen(address)
+  async getProjectCount(): Promise<number> {
+    const contract = this.contract || new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.provider)
+    const count = await contract.projectCount()
+    return Number(count)
   }
 
   async getProject(projectId: number): Promise<Project> {
     const contract = this.contract || new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.provider)
-
     const project = await contract.projects(projectId)
+
     return {
       id: projectId,
       name: project[0],
@@ -168,56 +192,68 @@ export class InfinifundContract {
       fundingDeadline: Number(project[9]),
       milestoneCount: Number(project[10]),
       fundingExpired: project[11],
+      investors: [],
+      investments: {},
     }
   }
 
-  async getProjectCount(): Promise<number> {
+  async getMilestone(projectId: number, milestoneId: number): Promise<Milestone> {
     const contract = this.contract || new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.provider)
-
-    const count = await contract.projectCount()
-    return Number(count)
+    // Note: This would require a getter function in the contract for milestones
+    // For now, we'll return a placeholder structure
+    return {
+      description: "",
+      completed: false,
+      fundsReleased: "0",
+      reportSubmitted: false,
+      votesFor: 0,
+      votesAgainst: 0,
+    }
   }
 
-  async getAllProjects(): Promise<Project[]> {
-    const projectCount = await this.getProjectCount()
-    const projects: Project[] = []
-
-    for (let i = 1; i <= projectCount; i++) {
-      try {
-        const project = await this.getProject(i)
-        if (project.exists) {
-          projects.push(project)
-        }
-      } catch (error) {
-        console.error(`Error fetching project ${i}:`, error)
-      }
+  async getScreeningVotes(projectId: number): Promise<{ votesFor: number; votesAgainst: number }> {
+    const contract = this.contract || new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.provider)
+    const [votesFor, votesAgainst] = await Promise.all([
+      contract.screeningVotesFor(projectId),
+      contract.screeningVotesAgainst(projectId),
+    ])
+    return {
+      votesFor: Number(votesFor),
+      votesAgainst: Number(votesAgainst),
     }
-
-    return projects
   }
 
-  async voteScreening(projectId: number, approve: boolean): Promise<ethers.ContractTransactionResponse> {
-    if (!this.contract) {
-      throw new Error("Contract not initialized. Call connect() first.")
-    }
-
-    return await this.contract.voteScreening(projectId, approve)
+  async hasVotedScreening(projectId: number, address: string): Promise<boolean> {
+    const contract = this.contract || new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.provider)
+    return await contract.screeningVotes(projectId, address)
   }
 
-  async fundProject(projectId: number, amount: string): Promise<ethers.ContractTransactionResponse> {
-    if (!this.contract) {
-      throw new Error("Contract not initialized. Call connect() first.")
-    }
+  async hasVotedMilestone(projectId: number, milestoneId: number, address: string): Promise<boolean> {
+    const contract = this.contract || new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.provider)
+    return await contract.milestoneInvestorVoted(projectId, milestoneId, address)
+  }
 
-    return await this.contract.fundProject(projectId, {
-      value: ethers.parseEther(amount),
-    })
+  async getUserProjects(address: string): Promise<number[]> {
+    const contract = this.contract || new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.provider)
+    const projects = await contract.getUserProjects(address)
+    return projects.map((p: any) => Number(p))
+  }
+
+  async getUserInvestments(address: string): Promise<number[]> {
+    const contract = this.contract || new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.provider)
+    const investments = await contract.getUserInvestments(address)
+    return investments.map((p: any) => Number(p))
+  }
+
+  async getTopProjects(topN: number): Promise<number[]> {
+    const contract = this.contract || new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.provider)
+    const projects = await contract.getTopProjects(topN)
+    return projects.map((p: any) => Number(p))
   }
 
   // Event listeners
   onProjectSubmitted(callback: (projectId: number, creator: string) => void) {
     if (!this.contract) return
-
     this.contract.on("ProjectSubmitted", (projectId, creator) => {
       callback(Number(projectId), creator)
     })
@@ -225,22 +261,27 @@ export class InfinifundContract {
 
   onCitizenshipRequested(callback: (user: string) => void) {
     if (!this.contract) return
-    this.contract.on("CitizenshipRequested", (user) => {
-      callback(user)
+    this.contract.on("CitizenshipRequested", callback)
+  }
+
+  onProjectApproved(callback: (projectId: number) => void) {
+    if (!this.contract) return
+    this.contract.on("ProjectApproved", (projectId) => {
+      callback(Number(projectId))
     })
   }
 
-  onCitizenshipApproved(callback: (user: string) => void) {
+  onProjectFunded(callback: (projectId: number, investor: string, amount: string) => void) {
     if (!this.contract) return
-    this.contract.on("CitizenshipApproved", (user) => {
-      callback(user)
+    this.contract.on("ProjectFunded", (projectId, investor, amount) => {
+      callback(Number(projectId), investor, amount.toString())
     })
   }
 
-  onCitizenshipRejected(callback: (user: string) => void) {
+  onMilestoneReportSubmitted(callback: (projectId: number, milestoneId: number) => void) {
     if (!this.contract) return
-    this.contract.on("CitizenshipRejected", (user) => {
-      callback(user)
+    this.contract.on("MilestoneReportSubmitted", (projectId, milestoneId) => {
+      callback(Number(projectId), Number(milestoneId))
     })
   }
 
@@ -251,5 +292,4 @@ export class InfinifundContract {
   }
 }
 
-// Singleton instance
 export const infinifundContract = new InfinifundContract()
