@@ -55,7 +55,7 @@ export default function ProjectsPage() {
   const loadProjects = async () => {
     try {
       setLoading(true)
-      const allProjects = await infinifundContract.getAllProjects()
+      const allProjects:any = await infinifundContract.getTopProjects()
       setProjects(allProjects)
     } catch (error) {
       console.error("Error loading projects:", error)

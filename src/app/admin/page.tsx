@@ -1,8 +1,22 @@
 "use client"
 
+import Link from "next/link"
+
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
-import { Shield, UserMinus, UserPlus, Crown, AlertTriangle, CheckCircle, XCircle, Clock, Trash2 } from "lucide-react"
+import {
+  Shield,
+  UserMinus,
+  UserPlus,
+  Crown,
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+  Clock,
+  Trash2,
+  Users,
+  Gavel,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -18,13 +32,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { infinifundContract } from "@/lib/infinifund-contract"
+import { infinifundContract, type CitizenshipRequest, type ProjectView } from "@/lib/infinifund-contract"
 import { toast } from "sonner"
-
-interface PendingRequest {
-  address: string
-  timestamp: number
-}
 
 export default function AdminPage() {
   const [userAddress, setUserAddress] = useState<string>("")
@@ -33,13 +42,14 @@ export default function AdminPage() {
   const [isMainAdmin, setIsMainAdmin] = useState(false)
   const [loading, setLoading] = useState(true)
 
+  // Real data from contract
+  const [pendingRequests, setPendingRequests] = useState<CitizenshipRequest[]>([])
+  const [pendingProjects, setPendingProjects] = useState<ProjectView[]>([])
+
   // Form states
   const [citizenAddress, setCitizenAddress] = useState("")
   const [adminAddress, setAdminAddress] = useState("")
   const [removeAdminAddress, setRemoveAdminAddress] = useState("")
-
-  // Mock pending requests (in real app, you'd get these from events)
-  const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([])
 
   // Loading states
   const [approvingCitizen, setApprovingCitizen] = useState("")
@@ -47,6 +57,7 @@ export default function AdminPage() {
   const [revokingCitizen, setRevokingCitizen] = useState("")
   const [addingAdmin, setAddingAdmin] = useState(false)
   const [removingAdmin, setRemovingAdmin] = useState("")
+  const [finalizingProject, setFinalizingProject] = useState(0)
 
   useEffect(() => {
     checkConnection()
@@ -57,6 +68,12 @@ export default function AdminPage() {
       checkAdminStatus()
     }
   }, [isConnected, userAddress])
+
+  useEffect(() => {
+    if (isAdmin) {
+      loadAdminData()
+    }
+  }, [isAdmin])
 
   const checkConnection = async () => {
     if (typeof window !== "undefined" && window.ethereum) {
@@ -95,15 +112,25 @@ export default function AdminPage() {
 
       setIsAdmin(adminStatus || userAddress.toLowerCase() === mainAdminAddress.toLowerCase())
       setIsMainAdmin(userAddress.toLowerCase() === mainAdminAddress.toLowerCase())
-
-      // Mock some pending requests for demo
-      setPendingRequests([
-        { address: "0x1234567890123456789012345678901234567890", timestamp: Date.now() - 3600000 },
-        { address: "0x0987654321098765432109876543210987654321", timestamp: Date.now() - 7200000 },
-      ])
     } catch (error) {
       console.error("Error checking admin status:", error)
       toast.error("Failed to check admin status")
+    }
+  }
+
+  const loadAdminData = async () => {
+    try {
+      // Load pending citizenship requests from contract events
+      const requests = await infinifundContract.getPendingCitizenshipRequests()
+      setPendingRequests(requests)
+
+      // Load pending projects (not approved for funding)
+      const allProjects = await infinifundContract.getAllProjects()
+      const pending = allProjects.filter((p) => !p.approvedForFunding && !p.fundingExpired)
+      setPendingProjects(pending)
+    } catch (error) {
+      console.error("Error loading admin data:", error)
+      toast.error("Failed to load admin data")
     }
   }
 
@@ -114,7 +141,7 @@ export default function AdminPage() {
       const tx = await infinifundContract.approveCitizenship(address)
       await tx.wait()
       toast.success("Citizenship approved successfully!")
-      setPendingRequests((prev) => prev.filter((req) => req.address !== address))
+      await loadAdminData()
     } catch (error: any) {
       toast.error("Failed to approve citizenship: " + error.message)
     } finally {
@@ -129,7 +156,7 @@ export default function AdminPage() {
       const tx = await infinifundContract.rejectCitizenship(address)
       await tx.wait()
       toast.success("Citizenship rejected successfully!")
-      setPendingRequests((prev) => prev.filter((req) => req.address !== address))
+      await loadAdminData()
     } catch (error: any) {
       toast.error("Failed to reject citizenship: " + error.message)
     } finally {
@@ -197,6 +224,21 @@ export default function AdminPage() {
     }
   }
 
+  const handleFinalizeScreening = async (projectId: number) => {
+    setFinalizingProject(projectId)
+    try {
+      toast.info("Finalizing project screening...")
+      const tx = await infinifundContract.finalizeScreening(projectId)
+      await tx.wait()
+      toast.success("Project screening finalized!")
+      await loadAdminData()
+    } catch (error: any) {
+      toast.error("Failed to finalize screening: " + error.message)
+    } finally {
+      setFinalizingProject(0)
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
@@ -258,7 +300,7 @@ export default function AdminPage() {
               </h1>
               <Crown className="h-8 w-8 text-purple-400" />
             </div>
-            <p className="text-xl text-blue-300 mb-2">Infinita City Administration</p>
+            <p className="text-xl text-blue-300 mb-2">Infinifund Platform Administration</p>
             <div className="flex items-center justify-center gap-4">
               <Badge className="bg-green-500/20 text-green-300 border-green-500/30">
                 {isMainAdmin ? "Main Administrator" : "Administrator"}
@@ -269,14 +311,44 @@ export default function AdminPage() {
             </div>
           </motion.div>
 
+          {/* Stats Cards */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"
+          >
+            <Card className="bg-gray-900/50 border-yellow-500/30 backdrop-blur-sm">
+              <CardContent className="p-4 text-center">
+                <Users className="h-8 w-8 text-yellow-400 mx-auto mb-2" />
+                <div className="text-2xl font-bold text-white">{pendingRequests.length}</div>
+                <div className="text-sm text-gray-300">Pending Citizenship</div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gray-900/50 border-blue-500/30 backdrop-blur-sm">
+              <CardContent className="p-4 text-center">
+                <Gavel className="h-8 w-8 text-blue-400 mx-auto mb-2" />
+                <div className="text-2xl font-bold text-white">{pendingProjects.length}</div>
+                <div className="text-sm text-gray-300">Projects to Review</div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gray-900/50 border-purple-500/30 backdrop-blur-sm">
+              <CardContent className="p-4 text-center">
+                <Shield className="h-8 w-8 text-purple-400 mx-auto mb-2" />
+                <div className="text-2xl font-bold text-white">{isMainAdmin ? "Main" : "Sub"}</div>
+                <div className="text-sm text-gray-300">Admin Level</div>
+              </CardContent>
+            </Card>
+          </motion.div>
+
           {/* Admin Tabs */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
             <Tabs defaultValue="citizenship" className="space-y-6">
-              <TabsList className="grid w-full grid-cols-2 bg-gray-900/50 border border-gray-700">
-                <TabsTrigger value="citizenship" className="data-[state=active]:bg-blue-600">
-                  Citizenship Management
-                </TabsTrigger>
-                <TabsTrigger value="admins" className="data-[state=active]:bg-purple-600" disabled={!isMainAdmin}>
+              <TabsList className="grid w-full grid-cols-3 bg-gray-900/50 border border-gray-700">
+                <TabsTrigger value="citizenship">Citizenship Management</TabsTrigger>
+                <TabsTrigger value="projects">Project Review</TabsTrigger>
+                <TabsTrigger value="admins" disabled={!isMainAdmin}>
                   Admin Management
                 </TabsTrigger>
               </TabsList>
@@ -288,15 +360,18 @@ export default function AdminPage() {
                   <CardHeader>
                     <CardTitle className="text-white flex items-center gap-2">
                       <Clock className="h-5 w-5 text-yellow-400" />
-                      Pending Citizenship Requests
+                      Pending Citizenship Requests ({pendingRequests.length})
                     </CardTitle>
                     <CardDescription className="text-gray-300">
-                      Review and approve or reject citizenship applications
+                      Review and approve or reject citizenship applications from the blockchain
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
                     {pendingRequests.length === 0 ? (
-                      <p className="text-gray-400 text-center py-8">No pending requests</p>
+                      <div className="text-center py-8">
+                        <Users className="h-12 w-12 text-gray-600 mx-auto mb-4" />
+                        <p className="text-gray-400">No pending citizenship requests</p>
+                      </div>
                     ) : (
                       <div className="space-y-4">
                         {pendingRequests.map((request) => (
@@ -402,6 +477,83 @@ export default function AdminPage() {
                         </div>
                       </DialogContent>
                     </Dialog>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Project Review */}
+              <TabsContent value="projects" className="space-y-6">
+                <Card className="bg-gray-900/50 border-blue-500/30 backdrop-blur-sm">
+                  <CardHeader>
+                    <CardTitle className="text-white flex items-center gap-2">
+                      <Gavel className="h-5 w-5 text-blue-400" />
+                      Projects Awaiting Review ({pendingProjects.length})
+                    </CardTitle>
+                    <CardDescription className="text-gray-300">
+                      Finalize screening votes for projects that have received community votes
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {pendingProjects.length === 0 ? (
+                      <div className="text-center py-8">
+                        <Gavel className="h-12 w-12 text-gray-600 mx-auto mb-4" />
+                        <p className="text-gray-400">No projects awaiting review</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {pendingProjects.map((project) => (
+                          <div key={project.project_id} className="p-4 bg-black/30 rounded-lg border border-gray-700">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <h3 className="text-white font-semibold text-lg mb-2">{project.name}</h3>
+                                <div className="flex items-center gap-4 text-sm text-gray-400 mb-3">
+                                  <span>
+                                    by {project.creator.slice(0, 6)}...{project.creator.slice(-4)}
+                                  </span>
+                                  <span>ID: {project.project_id}</span>
+                                  <span>{project.milestoneCount} milestones</span>
+                                </div>
+
+                                <div className="grid grid-cols-3 gap-4 mb-4">
+                                  <div className="text-center p-2 bg-green-500/10 rounded border border-green-500/30">
+                                    <div className="text-green-400 font-semibold">Votes For</div>
+                                    <div className="text-white text-lg">Loading...</div>
+                                  </div>
+                                  <div className="text-center p-2 bg-red-500/10 rounded border border-red-500/30">
+                                    <div className="text-red-400 font-semibold">Votes Against</div>
+                                    <div className="text-white text-lg">Loading...</div>
+                                  </div>
+                                  <div className="text-center p-2 bg-blue-500/10 rounded border border-blue-500/30">
+                                    <div className="text-blue-400 font-semibold">Total Votes</div>
+                                    <div className="text-white text-lg">Loading...</div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex flex-col gap-2 ml-4">
+                                <Link href={`/projects/${project.project_id}`}>
+                                  <Button size="sm" variant="outline" className="border-gray-600">
+                                    View Details
+                                  </Button>
+                                </Link>
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleFinalizeScreening(project.project_id)}
+                                  disabled={finalizingProject === project.project_id}
+                                  className="bg-blue-600 hover:bg-blue-700"
+                                >
+                                  {finalizingProject === project.project_id ? (
+                                    <Clock className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    "Finalize"
+                                  )}
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>

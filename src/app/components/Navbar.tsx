@@ -99,20 +99,6 @@ export default function Navbar() {
   }, [])
 
   const connectWallet = async () => {
-    if (typeof window.ethereum !== "undefined") {
-      try {
-        await window.ethereum.request({ method: "eth_requestAccounts" })
-        const provider = new ethers.BrowserProvider(window.ethereum)
-        const signer = await provider.getSigner()
-        const address = await signer.getAddress()
-        setAccount(address)
-        setIsWalletConnected(true)
-      } catch (error) {
-        console.error("Error connecting wallet:", error)
-      }
-    } else {
-      window.open("https://metamask.io/download/", "_blank")
-    }
   }
 
   const handleSearch = (query: string) => {
