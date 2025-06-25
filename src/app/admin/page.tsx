@@ -135,6 +135,8 @@ export default function AdminPage() {
   }
 
   const handleApproveCitizenship = async (address: string) => {
+    console.log("approve citizenship is running");
+    
     setApprovingCitizen(address)
     try {
       toast.info("Approving citizenship...")
@@ -143,6 +145,8 @@ export default function AdminPage() {
       toast.success("Citizenship approved successfully!")
       await loadAdminData()
     } catch (error: any) {
+      console.log(error);
+      
       toast.error("Failed to approve citizenship: " + error.message)
     } finally {
       setApprovingCitizen("")

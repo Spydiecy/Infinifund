@@ -7,6 +7,7 @@ import { ethers } from "ethers"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import logo from "./logo.jpg"
+import { infinifundContract } from "@/lib/infinifund-contract"
 
 interface NavItem {
   name: string
@@ -99,6 +100,8 @@ export default function Navbar() {
   }, [])
 
   const connectWallet = async () => {
+    let k=infinifundContract;
+    await k.connect()
   }
 
   const handleSearch = (query: string) => {
@@ -271,7 +274,7 @@ export default function Navbar() {
                 <button onClick={connectWallet} className="p-[3px] relative">
                   <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-lg" />
                   <div className="px-3 py-2 bg-black rounded-[6px] relative group transition duration-200 text-white hover:scale-[102%] flex items-center gap-2">
-                    <span>Connect Wallet</span>
+                    <span>Initialize Contract(temporary)</span>
                    
                   </div>
                 </button>
