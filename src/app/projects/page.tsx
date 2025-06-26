@@ -4,89 +4,128 @@ import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   Rocket,
-  Calendar,
+  Vote,
   DollarSign,
   Target,
   Clock,
   CheckCircle,
   XCircle,
   Eye,
-  Heart,
-  Share2,
-  TrendingUp,
   Filter,
   Search,
-  Sparkles,
-  MessageCircle,
   Users,
+  TrendingUp,
+  ThumbsUp,
+  ThumbsDown,
+  Wallet,
+  Calendar,
   Award,
-  Flame,
   Star,
+  ExternalLink,
+  RefreshCw
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Textarea } from "@/components/ui/textarea"
+import { useInfinifundContract } from "@/hooks/use-infinifund-contract"
 import { infinifundContract, type ProjectView } from "@/lib/infinifund-contract"
-import { getImageUrl,fetchImageUrl } from "@/lib/pinata-utils"
-import { reviewProjectWithAI } from "@/lib/gemini-ai"
 import { toast } from "sonner"
-import Image from "next/image"
 import Link from "next/link"
-import { ethers } from "ethers"
+import { useAccount } from "wagmi"
+
+type ProjectCategory = "all" | "prelisting" | "approved"
+type SortOption = "funding" | "votes" | "recent" | "progress"
+
+interface ProjectCardProps {
+  project: ProjectView
+  category: "prelisting" | "approved"
+  isConnected: boolean
+  isCitizen: boolean
+  onVote: (projectId: number, approve: boolean) => void
+  onFund: (projectId: number, amount: string) => void
+  userVotes?: { [key: number]: boolean | null }
+}
 
 export default function ProjectsPage() {
+  const { address, isConnected } = useAccount()
+  const { 
+    getAllProjects, 
+    voteForScreening, 
+    fundProject, 
+    isCitizen, 
+    getScreeningVotes,
+    loading: contractLoading 
+  } = useInfinifundContract()
+
   const [projects, setProjects] = useState<ProjectView[]>([])
   const [filteredProjects, setFilteredProjects] = useState<ProjectView[]>([])
   const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState<"all" | "approved" | "pending" | "top" | "latest">("all")
-  const [sortBy, setSortBy] = useState<"funding" | "investors" | "recent" | "progress">("funding")
+  const [category, setCategory] = useState<ProjectCategory>("all")
+  const [sortBy, setSortBy] = useState<SortOption>("recent")
   const [searchQuery, setSearchQuery] = useState("")
-  const [userAddress, setUserAddress] = useState<string>("")
-  const [isConnected, setIsConnected] = useState(false)
-  const [aiQuestion, setAiQuestion] = useState("")
-  const [aiResponse, setAiResponse] = useState("")
-  const [aiLoading, setAiLoading] = useState(false)
-  const [showAiDialog, setShowAiDialog] = useState(false)
+  const [userCitizen, setUserCitizen] = useState(false)
+  const [userVotes, setUserVotes] = useState<{ [key: number]: boolean | null }>({})
+  const [projectVotes, setProjectVotes] = useState<{ [key: number]: { votesFor: number, votesAgainst: number } }>({})
+  const [refreshing, setRefreshing] = useState(false)
 
   useEffect(() => {
-    loadProjects()
-    checkConnection()
-  }, [])
+    loadData()
+  }, [address, isConnected])
 
   useEffect(() => {
     filterAndSortProjects()
-  }, [projects, filter, sortBy, searchQuery])
+  }, [projects, category, sortBy, searchQuery])
 
-  const checkConnection = async () => {
-    if (typeof window !== "undefined" && window.ethereum) {
-      try {
-        const accounts = await window.ethereum.request({ method: "eth_accounts" })
-        if (accounts.length > 0) {
-          setUserAddress(accounts[0])
-          setIsConnected(true)
-        }
-      } catch (error) {
-        console.error("Error checking connection:", error)
-      }
+  const loadData = async () => {
+    if (!isConnected || !address) {
+      setLoading(false)
+      return
     }
-  }
 
-  const loadProjects = async () => {
     try {
       setLoading(true)
-      const allProjects = await infinifundContract.getAllProjects()
+      
+      // Load projects and user citizenship status
+      const [allProjects, citizenStatus] = await Promise.all([
+        getAllProjects(),
+        isCitizen(address)
+      ])
+      
       setProjects(allProjects)
+      setUserCitizen(citizenStatus)
+      
+      // Load voting data for each project
+      await loadVotingData(allProjects)
+      
     } catch (error) {
-      console.error("Error loading projects:", error)
+      console.error("Error loading data:", error)
       toast.error("Failed to load projects")
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadVotingData = async (projectList: ProjectView[]) => {
+    try {
+      const votesData: { [key: number]: { votesFor: number, votesAgainst: number } } = {}
+      
+      for (const project of projectList) {
+        try {
+          const votes = await getScreeningVotes(project.project_id)
+          votesData[project.project_id] = votes
+        } catch (error) {
+          console.error(`Error loading votes for project ${project.project_id}:`, error)
+          votesData[project.project_id] = { votesFor: 0, votesAgainst: 0 }
+        }
+      }
+      
+      setProjectVotes(votesData)
+    } catch (error) {
+      console.error("Error loading voting data:", error)
     }
   }
 
@@ -95,22 +134,22 @@ export default function ProjectsPage() {
 
     // Apply search filter
     if (searchQuery) {
-      filtered = filtered.filter((project) => project.name.toLowerCase().includes(searchQuery.toLowerCase()))
+      filtered = filtered.filter((project) => 
+        project.name.toLowerCase().includes(searchQuery.toLowerCase())
+      )
     }
 
     // Apply category filter
-    switch (filter) {
-      case "approved":
-        filtered = filtered.filter((p) => p.approvedForFunding)
-        break
-      case "pending":
+    switch (category) {
+      case "prelisting":
         filtered = filtered.filter((p) => !p.approvedForFunding && !p.fundingExpired)
         break
-      case "top":
-        filtered = filtered.filter((p) => Number(p.totalFunds) > 0)
+      case "approved":
+        filtered = filtered.filter((p) => p.approvedForFunding && !p.fundingExpired)
         break
-      case "latest":
-        // For latest, we'll show all but sort by project_id (newest first)
+      case "all":
+      default:
+        filtered = filtered.filter((p) => !p.fundingExpired)
         break
     }
 
@@ -119,12 +158,11 @@ export default function ProjectsPage() {
       case "funding":
         filtered.sort((a, b) => Number(b.totalFunds) - Number(a.totalFunds))
         break
-      case "investors":
-        // Sort by estimated investor count (based on funding amount)
+      case "votes":
         filtered.sort((a, b) => {
-          const aInvestors = Math.floor(Number(a.totalFunds) / 1e17) + 1
-          const bInvestors = Math.floor(Number(b.totalFunds) / 1e17) + 1
-          return bInvestors - aInvestors
+          const aVotes = projectVotes[a.project_id]?.votesFor || 0
+          const bVotes = projectVotes[b.project_id]?.votesFor || 0
+          return bVotes - aVotes
         })
         break
       case "recent":
@@ -142,587 +180,536 @@ export default function ProjectsPage() {
     setFilteredProjects(filtered)
   }
 
-  const connectWallet = async () => {
-    try {
-      const address = await infinifundContract.connect()
-      setUserAddress(address)
-      setIsConnected(true)
-      toast.success("Wallet connected successfully!")
-    } catch (error: any) {
-      toast.error("Failed to connect wallet: " + error.message)
-    }
-  }
-
   const handleVote = async (projectId: number, approve: boolean) => {
-    if (!isConnected) {
+    if (!isConnected || !address) {
       toast.error("Please connect your wallet to vote")
+      return
+    }
+
+    if (!userCitizen) {
+      toast.error("Only citizens can vote on projects")
       return
     }
 
     try {
       toast.info("Submitting vote...")
-      const tx = await infinifundContract.voteScreening(projectId, approve)
-      await tx.wait()
-      toast.success(`Vote ${approve ? "approved" : "rejected"} successfully!`)
-      loadProjects()
+      await voteForScreening(projectId, approve)
+      
+      // Update local voting state
+      setUserVotes(prev => ({ ...prev, [projectId]: approve }))
+      
+      // Refresh voting data
+      setTimeout(() => {
+        loadVotingData([projects.find(p => p.project_id === projectId)!])
+      }, 2000)
+      
+      toast.success(`Vote ${approve ? "for" : "against"} submitted successfully!`)
     } catch (error: any) {
-      toast.error("Failed to vote: " + error.message)
+      console.error("Error voting:", error)
+      toast.error("Failed to vote: " + (error?.message || "Unknown error"))
     }
   }
 
   const handleFund = async (projectId: number, amount: string) => {
-    if (!isConnected) {
+    if (!isConnected || !address) {
       toast.error("Please connect your wallet to fund")
       return
     }
 
+    if (!userCitizen) {
+      toast.error("Only citizens can fund projects")
+      return
+    }
+
     try {
-      toast.info("Processing funding...")
-      const tx = await infinifundContract.fundProject(projectId, amount)
-      await tx.wait()
-      toast.success("Project funded successfully!")
-      loadProjects()
+      toast.info("Processing investment...")
+      await fundProject(projectId, amount)
+      
+      // Refresh projects data
+      setTimeout(() => {
+        loadData()
+      }, 3000)
+      
+      toast.success("Investment successful!")
     } catch (error: any) {
-      toast.error("Failed to fund project: " + error.message)
+      console.error("Error funding:", error)
+      toast.error("Failed to fund project: " + (error?.message || "Unknown error"))
     }
   }
 
-  const handleAiQuestion = async () => {
-    if (!aiQuestion.trim()) return
-
-    setAiLoading(true)
-    try {
-      // Create a context about Infinita City for the AI
-      const infinitaCityContext = `
-      Infinita City is "The City That Never Dies" - a pioneering network city in Próspera, Roatán, Honduras, dedicated to advancing human longevity and frontier technology.
-
-      MISSION:
-      - Accelerate breakthroughs in Biotechnology and Longevity Science
-      - Advance Computational Science and AI
-      - Pioneer Cybernetics and Human Enhancement
-      - Foster Decentralized Science (DeSci) and Web3
-      - Extend healthy human lifespan and redefine civilization's future
-
-      INFINIFUND PLATFORM:
-      - Decentralized funding platform for breakthrough innovations
-      - Community-driven project screening and approval
-      - Milestone-based funding release system
-      - Citizen governance and voting rights
-      - Focus on longevity, biotech, AI, and frontier science projects
-
-      Question: ${aiQuestion}
-      `
-
-      const response = await reviewProjectWithAI({
-        projectName: "Infinita City Information Request",
-        projectDetails: infinitaCityContext,
-        milestones: ["Provide helpful information about Infinita City and Infinifund"],
-      })
-
-      setAiResponse(response.feedback)
-    } catch (error) {
-      console.error("AI Error:", error)
-      setAiResponse("I'm sorry, I couldn't process your question right now. Please try again later.")
-    } finally {
-      setAiLoading(false)
-    }
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    await loadData()
+    setRefreshing(false)
   }
 
-  const formatEther = (wei: string) => {
-    try {
-      return Number.parseFloat(ethers.formatEther(wei)).toFixed(4)
-    } catch {
-      return "0.0000"
-    }
-  }
+  const prelistingProjects = filteredProjects.filter(p => !p.approvedForFunding)
+  const approvedProjects = filteredProjects.filter(p => p.approvedForFunding)
 
-  const getProjectStatus = (project: ProjectView) => {
-    if (project.fundingExpired) return { text: "Expired", color: "bg-red-500/20 text-red-300 border-red-500/30" }
-    if (project.approvedForFunding)
-      return { text: "Approved", color: "bg-green-500/20 text-green-300 border-green-500/30" }
-    return { text: "Pending", color: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30" }
-  }
-
-  const getFilterIcon = (filterType: string) => {
-    switch (filterType) {
-      case "top":
-        return <Award className="h-4 w-4" />
-      case "latest":
-        return <Sparkles className="h-4 w-4" />
-      case "approved":
-        return <CheckCircle className="h-4 w-4" />
-      case "pending":
-        return <Clock className="h-4 w-4" />
-      default:
-        return <Filter className="h-4 w-4" />
-    }
-  }
-
-  const getSortIcon = (sortType: string) => {
-    switch (sortType) {
-      case "funding":
-        return <DollarSign className="h-4 w-4" />
-      case "investors":
-        return <Users className="h-4 w-4" />
-      case "recent":
-        return <Calendar className="h-4 w-4" />
-      case "progress":
-        return <Target className="h-4 w-4" />
-      default:
-        return <TrendingUp className="h-4 w-4" />
-    }
-  }
-
-  if (loading) {
+  if (!isConnected) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-orange-500 mx-auto mb-4"></div>
-          <p className="text-white text-xl">Loading Infinita City Projects...</p>
+      <div className="min-h-screen bg-black text-white pt-24 px-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-center min-h-[60vh]">
+            <Card className="bg-black/50 border-white/20 max-w-md w-full">
+              <CardContent className="p-8 text-center">
+                <Wallet className="w-16 h-16 mx-auto mb-4 text-white/60" />
+                <h2 className="text-2xl font-bold mb-2">Connect Your Wallet</h2>
+                <p className="text-white/60 mb-4">
+                  Connect your wallet to view and interact with projects
+                </p>
+                <Button className="bg-white/80 text-black hover:bg-white">
+                  Connect Wallet
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-black relative overflow-hidden">
-      {/* Animated Background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-orange-900/20 via-black to-pink-900/20" />
-      <div className="absolute inset-0">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-orange-500/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl animate-pulse delay-1000" />
-        <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-yellow-500/10 rounded-full blur-3xl animate-pulse delay-500" />
-      </div>
-
-      <div className="relative z-10 p-6">
-        <div className="max-w-7xl mx-auto">
-          {/* Header */}
-          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-12">
-            <div className="flex items-center justify-center gap-3 mb-4">
-              <Flame className="h-8 w-8 text-orange-400" />
-              <h1 className="text-5xl font-bold bg-gradient-to-r from-orange-400 via-pink-400 to-red-400 bg-clip-text text-transparent">
-                Infinita City Projects
-              </h1>
-              <Star className="h-8 w-8 text-pink-400" />
+    <div className="min-h-screen bg-black text-white pt-24 px-6">
+      <div className="max-w-7xl mx-auto">
+        
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="mb-12"
+        >
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-4xl font-bold mb-2">Project Hub</h1>
+              <p className="text-white/60 text-lg">
+                Discover and support breakthrough research projects
+              </p>
             </div>
-            <p className="text-xl text-orange-300 mb-2">Breakthrough innovations advancing human longevity</p>
-            <p className="text-gray-300 text-lg max-w-3xl mx-auto">
-              Discover and support cutting-edge projects in biotechnology, AI, and frontier science
-            </p>
-          </motion.div>
+            <Button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              variant="outline"
+              className="border-white/20 text-white hover:bg-white/5"
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
 
-          {/* Stats and Controls */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-              <Card className="bg-gray-900/50 border-orange-500/30 backdrop-blur-sm">
-                <CardContent className="p-4 text-center">
-                  <div className="text-2xl font-bold text-orange-400">{projects.length}</div>
-                  <div className="text-sm text-gray-300">Total Projects</div>
-                </CardContent>
-              </Card>
-              <Card className="bg-gray-900/50 border-green-500/30 backdrop-blur-sm">
-                <CardContent className="p-4 text-center">
-                  <div className="text-2xl font-bold text-green-400">
-                    {projects.filter((p) => p.approvedForFunding).length}
-                  </div>
-                  <div className="text-sm text-gray-300">Approved</div>
-                </CardContent>
-              </Card>
-              <Card className="bg-gray-900/50 border-yellow-500/30 backdrop-blur-sm">
-                <CardContent className="p-4 text-center">
-                  <div className="text-2xl font-bold text-yellow-400">
-                    {projects.filter((p) => !p.approvedForFunding && !p.fundingExpired).length}
-                  </div>
-                  <div className="text-sm text-gray-300">Pending</div>
-                </CardContent>
-              </Card>
-              <Card className="bg-gray-900/50 border-pink-500/30 backdrop-blur-sm">
-                <CardContent className="p-4 text-center">
-                  <div className="text-2xl font-bold text-pink-400">
-                    {formatEther(
-                      projects.reduce((sum, p) => sum + Number.parseFloat(p.totalFunds || "0"), 0).toString(),
-                    )}{" "}
-                    ETH
-                  </div>
-                  <div className="text-sm text-gray-300">Total Funded</div>
-                </CardContent>
-              </Card>
+          {/* Status Bar */}
+          <div className="flex items-center gap-4 p-4 bg-black/50 border border-white/10 rounded-lg">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
+              <span className="text-sm">Connected: {address?.slice(0, 6)}...{address?.slice(-4)}</span>
             </div>
+            <div className="flex items-center gap-2">
+              <Badge className={`${userCitizen ? 'bg-white/10 text-white border-white/20' : 'bg-white/5 text-white/60 border-white/10'}`}>
+                {userCitizen ? 'Citizen' : 'Non-Citizen'}
+              </Badge>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-white/60">
+              <span>Total Projects: {projects.length}</span>
+            </div>
+          </div>
+        </motion.div>
 
-            {/* Search and Filters */}
-            <div className="flex flex-col lg:flex-row gap-4 mb-6">
-              <div className="flex-1">
+        {/* Filters */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+          className="mb-8"
+        >
+          <Card className="bg-black border-white/10">
+            <CardContent className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                
+                {/* Search */}
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/40 w-4 h-4" />
                   <Input
                     placeholder="Search projects..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 bg-gray-900/50 border-gray-600 text-white"
+                    className="pl-10 bg-black/50 border-white/20 text-white"
                   />
                 </div>
-              </div>
 
-              <div className="flex gap-2">
-                <Select value={filter} onValueChange={(value: any) => setFilter(value)}>
-                  <SelectTrigger className="w-40 bg-gray-900/50 border-gray-600 text-white">
-                    <div className="flex items-center gap-2">
-                      {getFilterIcon(filter)}
-                      <SelectValue />
-                    </div>
+                {/* Category Filter */}
+                <Select value={category} onValueChange={(value: ProjectCategory) => setCategory(value)}>
+                  <SelectTrigger className="bg-black/50 border-white/20 text-white">
+                    <SelectValue placeholder="Category" />
                   </SelectTrigger>
-                  <SelectContent className="bg-gray-900 border-gray-600">
-                    <SelectItem value="all">All Projects</SelectItem>
-                    <SelectItem value="top">Top Funded</SelectItem>
-                    <SelectItem value="latest">Latest</SelectItem>
-                    <SelectItem value="approved">Approved</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
+                  <SelectContent className="bg-black border-white/20">
+                    <SelectItem value="all" className="text-white">All Projects</SelectItem>
+                    <SelectItem value="prelisting" className="text-white">Pre-listing (Vote)</SelectItem>
+                    <SelectItem value="approved" className="text-white">Approved (Invest)</SelectItem>
                   </SelectContent>
                 </Select>
 
-                <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
-                  <SelectTrigger className="w-40 bg-gray-900/50 border-gray-600 text-white">
-                    <div className="flex items-center gap-2">
-                      {getSortIcon(sortBy)}
-                      <SelectValue />
-                    </div>
+                {/* Sort */}
+                <Select value={sortBy} onValueChange={(value: SortOption) => setSortBy(value)}>
+                  <SelectTrigger className="bg-black/50 border-white/20 text-white">
+                    <SelectValue placeholder="Sort by" />
                   </SelectTrigger>
-                  <SelectContent className="bg-gray-900 border-gray-600">
-                    <SelectItem value="funding">Highest Funding</SelectItem>
-                    <SelectItem value="investors">Most Investors</SelectItem>
-                    <SelectItem value="recent">Most Recent</SelectItem>
-                    <SelectItem value="progress">Most Progress</SelectItem>
+                  <SelectContent className="bg-black border-white/20">
+                    <SelectItem value="recent" className="text-white">Most Recent</SelectItem>
+                    <SelectItem value="funding" className="text-white">Most Funded</SelectItem>
+                    <SelectItem value="votes" className="text-white">Most Votes</SelectItem>
+                    <SelectItem value="progress" className="text-white">Progress</SelectItem>
                   </SelectContent>
                 </Select>
+
+                {/* Create Project */}
+                <Link href="/create-project">
+                  <Button className="w-full bg-white/80 text-black hover:bg-white">
+                    <Rocket className="w-4 h-4 mr-2" />
+                    Submit Project
+                  </Button>
+                </Link>
               </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+              <p className="text-white/60">Loading projects...</p>
             </div>
-
-            {/* Action Bar */}
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-              <div className="flex gap-2">
-                <Button
-                  variant={filter === "all" ? "default" : "outline"}
-                  onClick={() => setFilter("all")}
-                  className={filter === "all" ? "bg-orange-600" : "bg-gray-800 border-gray-600 text-white"}
-                >
-                  All Projects
-                </Button>
-                <Button
-                  variant={filter === "top" ? "default" : "outline"}
-                  onClick={() => setFilter("top")}
-                  className={filter === "top" ? "bg-yellow-600" : "bg-gray-800 border-gray-600 text-white"}
-                >
-                  <Award className="h-4 w-4 mr-1" />
-                  Top Funded
-                </Button>
-                <Button
-                  variant={filter === "latest" ? "default" : "outline"}
-                  onClick={() => setFilter("latest")}
-                  className={filter === "latest" ? "bg-pink-600" : "bg-gray-800 border-gray-600 text-white"}
-                >
-                  <Sparkles className="h-4 w-4 mr-1" />
-                  Latest
-                </Button>
-              </div>
-
-              <div className="flex items-center gap-4">
-                {/* AI Chat Button */}
-                <Dialog open={showAiDialog} onOpenChange={setShowAiDialog}>
-                  <DialogTrigger asChild>
-                    <Button className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700">
-                      <MessageCircle className="h-4 w-4 mr-2" />
-                      Ask AI
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="bg-gray-900 border-gray-700 text-white max-w-2xl">
-                    <DialogHeader>
-                      <DialogTitle className="flex items-center gap-2">
-                        <Sparkles className="h-5 w-5 text-purple-400" />
-                        Ask about Infinita City
-                      </DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="text-sm font-medium text-gray-300 mb-2 block">
-                          What would you like to know about Infinita City or Infinifund?
-                        </label>
-                        <Textarea
-                          placeholder="e.g., What is Infinita City's mission? How does the funding process work?"
-                          value={aiQuestion}
-                          onChange={(e) => setAiQuestion(e.target.value)}
-                          className="bg-gray-800 border-gray-600 text-white"
-                          rows={3}
+          </div>
+        ) : (
+          <>
+            {/* Project Categories */}
+            {category === "all" && (
+              <>
+                {/* Pre-listing Section */}
+                {prelistingProjects.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.2 }}
+                    className="mb-12"
+                  >
+                    <div className="flex items-center gap-3 mb-6">
+                      <Vote className="w-6 h-6" />
+                      <h2 className="text-2xl font-bold">Pre-listing Projects</h2>
+                      <Badge className="bg-white/10 text-white border-white/20">
+                        Vote Required
+                      </Badge>
+                      <span className="text-white/60">({prelistingProjects.length})</span>
+                    </div>
+                    <p className="text-white/60 mb-6">
+                      These projects are awaiting community approval. Citizens can vote to approve projects for funding.
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {prelistingProjects.map((project) => (
+                        <ProjectCard
+                          key={project.project_id}
+                          project={project}
+                          category="prelisting"
+                          isConnected={isConnected}
+                          isCitizen={userCitizen}
+                          onVote={handleVote}
+                          onFund={handleFund}
+                          userVotes={userVotes}
                         />
-                      </div>
-                      <Button
-                        onClick={handleAiQuestion}
-                        disabled={aiLoading || !aiQuestion.trim()}
-                        className="w-full bg-gradient-to-r from-purple-600 to-pink-600"
-                      >
-                        {aiLoading ? (
-                          <>
-                            <Clock className="h-4 w-4 mr-2 animate-spin" />
-                            Thinking...
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles className="h-4 w-4 mr-2" />
-                            Ask AI
-                          </>
-                        )}
-                      </Button>
-                      {aiResponse && (
-                        <div className="mt-4 p-4 bg-gray-800 rounded-lg border border-gray-600">
-                          <h4 className="font-semibold text-purple-400 mb-2">AI Response:</h4>
-                          <p className="text-gray-300 whitespace-pre-wrap">{aiResponse}</p>
-                        </div>
-                      )}
+                      ))}
                     </div>
-                  </DialogContent>
-                </Dialog>
-
-                {isConnected ? (
-                  <div className="flex items-center gap-2 text-green-400">
-                    <CheckCircle className="h-4 w-4" />
-                    <span className="text-sm">
-                      {userAddress.slice(0, 6)}...{userAddress.slice(-4)}
-                    </span>
-                  </div>
-                ) : (
-                  <Button onClick={connectWallet} className="bg-orange-600 hover:bg-orange-700">
-                    Connect Wallet
-                  </Button>
+                  </motion.div>
                 )}
+
+                {/* Approved Section */}
+                {approvedProjects.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.3 }}
+                    className="mb-12"
+                  >
+                    <div className="flex items-center gap-3 mb-6">
+                      <DollarSign className="w-6 h-6" />
+                      <h2 className="text-2xl font-bold">Approved for Funding</h2>
+                      <Badge className="bg-white/10 text-white border-white/20">
+                        Ready to Invest
+                      </Badge>
+                      <span className="text-white/60">({approvedProjects.length})</span>
+                    </div>
+                    <p className="text-white/60 mb-6">
+                      These projects have been approved by the community and are ready for investment.
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {approvedProjects.map((project) => (
+                        <ProjectCard
+                          key={project.project_id}
+                          project={project}
+                          category="approved"
+                          isConnected={isConnected}
+                          isCitizen={userCitizen}
+                          onVote={handleVote}
+                          onFund={handleFund}
+                          userVotes={userVotes}
+                        />
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </>
+            )}
+
+            {/* Single Category View */}
+            {category !== "all" && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+                className="mb-12"
+              >
+                <div className="flex items-center gap-3 mb-6">
+                  {category === "prelisting" ? <Vote className="w-6 h-6" /> : <DollarSign className="w-6 h-6" />}
+                  <h2 className="text-2xl font-bold">
+                    {category === "prelisting" ? "Pre-listing Projects" : "Approved for Funding"}
+                  </h2>
+                  <span className="text-white/60">({filteredProjects.length})</span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredProjects.map((project) => (
+                    <ProjectCard
+                      key={project.project_id}
+                      project={project}
+                      category={category as "prelisting" | "approved"}
+                      isConnected={isConnected}
+                      isCitizen={userCitizen}
+                      onVote={handleVote}
+                      onFund={handleFund}
+                      userVotes={userVotes}
+                    />
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            {/* Empty State */}
+            {filteredProjects.length === 0 && (
+              <div className="text-center py-20">
+                <Rocket className="w-16 h-16 mx-auto mb-4 text-white/40" />
+                <h3 className="text-xl font-semibold mb-2">No Projects Found</h3>
+                <p className="text-white/60 mb-6">
+                  {searchQuery 
+                    ? "No projects match your search criteria." 
+                    : "Be the first to submit a project!"
+                  }
+                </p>
                 <Link href="/create-project">
-                  <Button className="bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700">
-                    <Rocket className="h-4 w-4 mr-2" />
-                    Submit Project
+                  <Button className="bg-white/80 text-black hover:bg-white">
+                    Submit First Project
                   </Button>
                 </Link>
               </div>
-            </div>
-          </motion.div>
-
-          {/* Projects Grid */}
-          <AnimatePresence>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredProjects.map((project, index) => (
-                <motion.div
-                  key={project.project_id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ delay: index * 0.1 }}
-                >
-                  <ProjectCard project={project} isConnected={isConnected} onVote={handleVote} onFund={handleFund} />
-                </motion.div>
-              ))}
-            </div>
-          </AnimatePresence>
-
-          {filteredProjects.length === 0 && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-12">
-              <Rocket className="h-16 w-16 text-gray-600 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-white mb-2">No Projects Found</h3>
-              <p className="text-gray-400 mb-6">
-                {searchQuery
-                  ? `No projects match "${searchQuery}"`
-                  : filter === "all"
-                    ? "No projects have been submitted yet."
-                    : `No ${filter} projects found.`}
-              </p>
-              <div className="flex gap-4 justify-center">
-                <Link href="/create-project">
-                  <Button className="bg-gradient-to-r from-orange-600 to-red-600">
-                    <Rocket className="h-4 w-4 mr-2" />
-                    Submit Project
-                  </Button>
-                </Link>
-                {searchQuery && (
-                  <Button variant="outline" onClick={() => setSearchQuery("")} className="border-gray-600">
-                    Clear Search
-                  </Button>
-                )}
-              </div>
-            </motion.div>
-          )}
-        </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   )
 }
 
-function ProjectCard({
-  project,
-  isConnected,
-  onVote,
-  onFund,
-}: {
-  project: ProjectView
-  isConnected: boolean
-  onVote: (projectId: number, approve: boolean) => void
-  onFund: (projectId: number, amount: string) => void
-}) {
-  const [projectDetails, setProjectDetails] = useState<any>(null)
-  const [iconUrl, setIconUrl] = useState<string>("")
-
-  useEffect(() => {
-    loadProjectDetails()
-  }, [project.project_id])
-
-  const loadProjectDetails = async () => {
-    try {
-      const details = await infinifundContract.getProjectDetails(project.project_id)
-      setProjectDetails(details)
-
-      // Load project icon
-      if (details.icon) {
-        const url =await  fetchImageUrl(details.icon)
-        setIconUrl(url)
-      }
-    } catch (error) {
-      console.error("Error loading project details:", error)
-    }
-  }
-
-  const status = getProjectStatus(project)
+// Project Card Component
+function ProjectCard({ 
+  project, 
+  category, 
+  isConnected, 
+  isCitizen, 
+  onVote, 
+  onFund, 
+  userVotes 
+}: ProjectCardProps) {
+  const [fundAmount, setFundAmount] = useState("")
+  const [showFundDialog, setShowFundDialog] = useState(false)
+  
   const progress = project.milestoneCount > 0 ? (project.currentMilestone / project.milestoneCount) * 100 : 0
-  const estimatedInvestors = Math.floor(Number(project.totalFunds) / 1e17) + 1
+  const fundingAmount = Number(project.totalFunds) / 1e18
+  const hasVoted = userVotes?.[project.project_id] !== undefined
 
   return (
-    <Card className="bg-gray-900/50 border-gray-700/50 backdrop-blur-sm hover:border-orange-500/50 transition-all duration-300 h-full group">
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              {iconUrl ? (
-                <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-800 border-2 border-orange-500/30">
-                  <Image
-                    src={iconUrl || "/placeholder.svg"}
-                    alt={project.name}
-                    width={48}
-                    height={48}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      whileHover={{ y: -5 }}
+      className="group"
+    >
+      <Card className="bg-black/50 border-white/20 hover:border-white/30 transition-all duration-300 h-full">
+        <CardHeader className="pb-4">
+          <div className="flex justify-between items-start mb-3">
+            <Badge className="bg-white/10 text-white border-white/20">
+              {category === "prelisting" ? "Pre-listing" : "Approved"}
+            </Badge>
+            <div className="text-right">
+              <div className="text-xs text-white/60">ID</div>
+              <div className="text-sm font-mono">{project.project_id}</div>
+            </div>
+          </div>
+          
+          <CardTitle className="text-white group-hover:text-white/90 transition-colors line-clamp-2">
+            {project.name}
+          </CardTitle>
+          
+          <div className="flex items-center gap-2 text-sm text-white/60">
+            <Users className="w-4 h-4" />
+            <span>{project.creator.slice(0, 6)}...{project.creator.slice(-4)}</span>
+          </div>
+        </CardHeader>
+
+        <CardContent className="space-y-4">
+          
+          {/* Progress Bar */}
+          <div>
+            <div className="flex justify-between text-sm mb-2">
+              <span className="text-white/60">Progress</span>
+              <span className="text-white">{project.currentMilestone}/{project.milestoneCount} milestones</span>
+            </div>
+            <Progress value={progress} className="h-2" />
+          </div>
+
+          {/* Funding Info */}
+          {category === "approved" && (
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-white/60">Total Funded</span>
+                <span className="text-white font-semibold">{fundingAmount.toFixed(4)} FLOW</span>
+              </div>
+              <div className="text-xs text-white/40">
+                Estimated {Math.max(1, Math.floor(fundingAmount / 0.1))} investors
+              </div>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="flex gap-2 pt-2">
+            
+            {/* View Details */}
+            <Link href={`/projects/${project.project_id}`} className="flex-1">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-full border-white/20 text-white hover:bg-white/5"
+              >
+                <Eye className="w-4 h-4 mr-2" />
+                View Details
+              </Button>
+            </Link>
+
+            {/* Category-specific actions */}
+            {category === "prelisting" && isCitizen && (
+              <div className="flex gap-1 flex-1">
+                <Button
+                  size="sm"
+                  onClick={() => onVote(project.project_id, true)}
+                  disabled={hasVoted}
+                  className="flex-1 bg-white/80 hover:bg-white text-black disabled:opacity-50 disabled:bg-white/20 disabled:text-white/60"
+                >
+                  <ThumbsUp className="w-3 h-3 mr-1" />
+                  For
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onVote(project.project_id, false)}
+                  disabled={hasVoted}
+                  className="flex-1 border-white/20 text-white hover:bg-white/5 disabled:opacity-50"
+                >
+                  <ThumbsDown className="w-3 h-3 mr-1" />
+                  Against
+                </Button>
+              </div>
+            )}
+
+            {category === "approved" && isCitizen && (
+              <Dialog open={showFundDialog} onOpenChange={setShowFundDialog}>
+                <DialogTrigger asChild>
+                  <Button 
+                    size="sm" 
+                    className="flex-1 bg-white/80 hover:bg-white text-black"
+                  >
+                    <DollarSign className="w-4 h-4 mr-1" />
+                    Invest
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="bg-black border-white/20">
+                  <DialogHeader>
+                    <DialogTitle className="text-white">Invest in {project.name}</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 mt-4">
+                    <div>
+                      <label className="text-sm text-white/60 block mb-2">Investment Amount (FLOW)</label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        placeholder="0.00"
+                        value={fundAmount}
+                        onChange={(e) => setFundAmount(e.target.value)}
+                        className="bg-black/50 border-white/20 text-white"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => setShowFundDialog(false)}
+                        className="flex-1 border-white/20 text-white hover:bg-white/5"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          if (fundAmount && Number(fundAmount) > 0) {
+                            onFund(project.project_id, fundAmount)
+                            setShowFundDialog(false)
+                            setFundAmount("")
+                          }
+                        }}
+                        disabled={!fundAmount || Number(fundAmount) <= 0}
+                        className="flex-1 bg-white/80 hover:bg-white text-black"
+                      >
+                        Invest {fundAmount} FLOW
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
+          </div>
+
+          {/* Voting Status */}
+          {category === "prelisting" && (
+            <div className="text-xs text-white/60 text-center pt-2 border-t border-white/10">
+              {hasVoted ? (
+                <span className="text-white">
+                  ✓ You voted {userVotes?.[project.project_id] ? "for" : "against"} this project
+                </span>
+              ) : isCitizen ? (
+                "Vote to help approve this project for funding"
               ) : (
-                <Avatar className="h-12 w-12 bg-gradient-to-r from-orange-500 to-pink-500">
-                  <AvatarFallback className="text-white font-bold">{project.name.charAt(0)}</AvatarFallback>
-                </Avatar>
-              )}
-              {Number(project.totalFunds) > 0 && (
-                <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-black animate-pulse" />
+                "Only citizens can vote on projects"
               )}
             </div>
-            <div>
-              <CardTitle className="text-white text-lg group-hover:text-orange-400 transition-colors">
-                {project.name}
-              </CardTitle>
-              <CardDescription className="text-gray-400 text-sm">
-                by {project.creator.slice(0, 6)}...{project.creator.slice(-4)}
-              </CardDescription>
+          )}
+
+          {category === "approved" && (
+            <div className="text-xs text-white/60 text-center pt-2 border-t border-white/10">
+              {isCitizen ? (
+                "This project is approved for investment"
+              ) : (
+                "Only citizens can invest in projects"
+              )}
             </div>
-          </div>
-          <div className="flex flex-col items-end gap-2">
-            <Badge className={status.color}>{status.text}</Badge>
-            <span className="text-xs text-gray-500">#{project.project_id}</span>
-          </div>
-        </div>
-      </CardHeader>
-
-      <CardContent className="space-y-4">
-        {/* Project Description */}
-        {projectDetails?.details && <p className="text-gray-300 text-sm line-clamp-2">{projectDetails.details}</p>}
-
-        {/* Stats */}
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div className="flex items-center gap-2 text-green-400">
-            <DollarSign className="h-4 w-4" />
-            <span>{formatEther(project.totalFunds)} ETH</span>
-          </div>
-          <div className="flex items-center gap-2 text-orange-400">
-            <Users className="h-4 w-4" />
-            <span>{estimatedInvestors} investors</span>
-          </div>
-          <div className="flex items-center gap-2 text-pink-400">
-            <Target className="h-4 w-4" />
-            <span>{project.milestoneCount} milestones</span>
-          </div>
-          <div className="flex items-center gap-2 text-yellow-400">
-            <Clock className="h-4 w-4" />
-            <span>Phase {project.currentMilestone + 1}</span>
-          </div>
-        </div>
-
-        {/* Progress */}
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-400">Progress</span>
-            <span className="text-white">{Math.round(progress)}%</span>
-          </div>
-          <Progress value={progress} className="h-2" />
-        </div>
-
-        {/* Actions */}
-        <div className="flex gap-2 pt-2">
-          {!project.approvedForFunding && isConnected && (
-            <>
-              <Button
-                size="sm"
-                onClick={() => onVote(project.project_id, true)}
-                className="bg-green-600 hover:bg-green-700 flex-1"
-              >
-                <CheckCircle className="h-4 w-4 mr-1" />
-                Approve
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => onVote(project.project_id, false)}
-                className="border-red-500 text-red-400 hover:bg-red-500/10 flex-1"
-              >
-                <XCircle className="h-4 w-4 mr-1" />
-                Reject
-              </Button>
-            </>
           )}
-
-          {project.approvedForFunding && isConnected && (
-            <Button
-              size="sm"
-              onClick={() => onFund(project.project_id, "0.01")}
-              className="bg-orange-600 hover:bg-orange-700 flex-1"
-            >
-              <Heart className="h-4 w-4 mr-1" />
-              Fund 0.01 ETH
-            </Button>
-          )}
-
-          <Link href={`/projects/${project.project_id}`}>
-            <Button size="sm" variant="outline" className="border-gray-600 text-gray-300">
-              <Eye className="h-4 w-4" />
-            </Button>
-          </Link>
-          <Button size="sm" variant="outline" className="border-gray-600 text-gray-300">
-            <Share2 className="h-4 w-4" />
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </motion.div>
   )
-}
-
-function getProjectStatus(project: ProjectView) {
-  if (project.fundingExpired) return { text: "Expired", color: "bg-red-500/20 text-red-300 border-red-500/30" }
-  if (project.approvedForFunding)
-    return { text: "Approved", color: "bg-green-500/20 text-green-300 border-green-500/30" }
-  return { text: "Pending", color: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30" }
-}
-
-function formatEther(wei: string) {
-  try {
-    return Number.parseFloat(ethers.formatEther(wei)).toFixed(4)
-  } catch {
-    return "0.0000"
-  }
 }
