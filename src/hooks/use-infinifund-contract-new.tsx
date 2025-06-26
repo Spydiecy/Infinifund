@@ -428,29 +428,8 @@ export function useInfinifundContract() {
   }
 
   // Read functions - these use the contract class for better error handling
-  const getAllProjects = async () => {
-    try {
-      console.log("Hook: Getting all projects...")
-      const result = await infinifundContract.getAllProjects()
-      console.log("Hook: Projects result:", result)
-      return result
-    } catch (error) {
-      console.error("Hook: Error getting projects:", error)
-      throw error
-    }
-  }
-  
-  const getPendingCitizenshipRequests = async () => {
-    try {
-      console.log("Hook: Getting pending citizenship requests...")
-      const result = await infinifundContract.getPendingCitizenshipRequests()
-      console.log("Hook: Citizenship requests result:", result)
-      return result
-    } catch (error) {
-      console.error("Hook: Error getting citizenship requests:", error)
-      throw error
-    }
-  }
+  const getAllProjects = () => infinifundContract.getAllProjects()
+  const getPendingCitizenshipRequests = () => infinifundContract.getPendingCitizenshipRequests()
   const getProjectDetails = (projectId: number) => infinifundContract.getProjectDetails(projectId)
   const getUserProjects = (userAddress: string) => infinifundContract.getUserProjects(userAddress)
   const getUserInvestments = (userAddress: string) => infinifundContract.getUserInvestments(userAddress)

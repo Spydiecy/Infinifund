@@ -11,6 +11,7 @@ import {
   Activity,
   TrendingUp,
   AlertCircle,
+  RefreshCw,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -23,7 +24,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { infinifundContract, type CitizenshipRequest, type ProjectView } from "@/lib/infinifund-contract"
+import { infinifundContract, type CitizenshipRequest, type ProjectView, type ProjectDetails } from "@/lib/infinifund-contract"
 import { useInfinifundContract } from "@/hooks/use-infinifund-contract"
 import { toast } from "sonner"
 
@@ -59,6 +60,8 @@ export default function AdminPage() {
   // Real data from contract
   const [pendingRequests, setPendingRequests] = useState<CitizenshipRequest[]>([])
   const [pendingProjects, setPendingProjects] = useState<ProjectView[]>([])
+  const [selectedProject, setSelectedProject] = useState<ProjectView | null>(null)
+  const [projectDetailsModalOpen, setProjectDetailsModalOpen] = useState(false)
 
   // Form states
   const [citizenAddress, setCitizenAddress] = useState("")
@@ -72,16 +75,21 @@ export default function AdminPage() {
   const [addingAdmin, setAddingAdmin] = useState(false)
   const [removingAdmin, setRemovingAdmin] = useState("")
   const [finalizingProject, setFinalizingProject] = useState(0)
+  const [refreshingData, setRefreshingData] = useState(false)
 
   useEffect(() => {
     if (isConnected && userAddress) {
+      console.log("Admin page: Connected user:", userAddress)
       checkMainAdminStatus()
     }
   }, [isConnected, userAddress])
 
   useEffect(() => {
     if (isAdmin) {
+      console.log("Admin page: User is admin, loading data...")
       loadAdminData()
+    } else {
+      console.log("Admin page: User is not admin")
     }
   }, [isAdmin])
 
@@ -96,26 +104,40 @@ export default function AdminPage() {
 
   const loadAdminData = async () => {
     try {
+      setRefreshingData(true)
+      console.log("Loading admin data...")
       const requests = await getPendingCitizenshipRequests()
+      console.log("Pending requests:", requests)
       setPendingRequests(requests)
 
       const allProjects = await getAllProjects()
+      console.log("All projects:", allProjects)
       const pending = allProjects.filter((p) => !p.approvedForFunding && !p.fundingExpired)
+      console.log("Pending projects:", pending)
       setPendingProjects(pending)
     } catch (error) {
       console.error("Error loading admin data:", error)
       toast.error("Failed to load admin data")
+    } finally {
+      setRefreshingData(false)
     }
   }
 
   const handleApproveCitizenship = async (address: string) => {
     setApprovingCitizen(address)
     try {
-      toast.info("Approving citizenship...")
+      console.log("Approving citizenship for:", address)
+      toast.info("Submitting approval transaction...")
       await approveCitizenship(address)
-      await loadAdminData()
+      toast.success("Approval transaction submitted!")
+      // Wait a bit then reload data
+      setTimeout(() => {
+        loadAdminData()
+      }, 2000)
     } catch (error: any) {
-      toast.error("Failed to approve citizenship: " + error.message)
+      console.error("Failed to approve citizenship:", error)
+      const errorMessage = error?.message || "Failed to approve citizenship"
+      toast.error(errorMessage)
     } finally {
       setApprovingCitizen("")
     }
@@ -124,11 +146,18 @@ export default function AdminPage() {
   const handleRejectCitizenship = async (address: string) => {
     setRejectingCitizen(address)
     try {
-      toast.info("Rejecting citizenship...")
+      console.log("Rejecting citizenship for:", address)
+      toast.info("Submitting rejection transaction...")
       await rejectCitizenship(address)
-      await loadAdminData()
+      toast.success("Rejection transaction submitted!")
+      // Wait a bit then reload data
+      setTimeout(() => {
+        loadAdminData()
+      }, 2000)
     } catch (error: any) {
-      toast.error("Failed to reject citizenship: " + error.message)
+      console.error("Failed to reject citizenship:", error)
+      const errorMessage = error?.message || "Failed to reject citizenship"
+      toast.error(errorMessage)
     } finally {
       setRejectingCitizen("")
     }
@@ -188,16 +217,103 @@ export default function AdminPage() {
     }
   }
 
-  const handleFinalizeScreening = async (projectId: number) => {
+  const handleApproveProject = async (projectId: number) => {
     setFinalizingProject(projectId)
     try {
-      toast.info("Finalizing project screening...")
-      await finalizeScreening(projectId)
-      await loadAdminData()
+      console.log("Approving project for funding:", projectId)
+      console.log("Current user isAdmin:", isAdmin)
+      console.log("Current user address:", userAddress)
+      
+      if (!isAdmin) {
+        toast.error("Only admins can approve projects for funding")
+        return
+      }
+      
+      toast.info("Submitting project approval transaction...")
+      const result = await finalizeScreening(projectId)
+      console.log("Approval result:", result)
+      
+      if (result) {
+        toast.success("Project approval transaction submitted!")
+        // Wait a bit then reload data
+        setTimeout(() => {
+          loadAdminData()
+        }, 3000)
+      }
     } catch (error: any) {
-      toast.error("Failed to finalize screening: " + error.message)
+      console.error("Failed to approve project:", error)
+      console.error("Error details:", {
+        message: error?.message,
+        cause: error?.cause,
+        stack: error?.stack
+      })
+      
+      let errorMessage = "Failed to approve project for funding"
+      if (error?.message) {
+        if (error.message.includes("User rejected")) {
+          errorMessage = "Transaction was rejected by user"
+        } else if (error.message.includes("insufficient funds")) {
+          errorMessage = "Insufficient funds for transaction"
+        } else if (error.message.includes("not authorized") || error.message.includes("admin")) {
+          errorMessage = "Not authorized - admin access required"
+        } else {
+          errorMessage = error.message
+        }
+      }
+      
+      toast.error(errorMessage)
     } finally {
       setFinalizingProject(0)
+    }
+  }
+
+  const handleViewProjectDetails = async (project: ProjectView) => {
+    try {
+      console.log("Opening project details for:", project.project_id)
+      console.log("Project data:", project)
+      console.log("Setting modal open to true...")
+      
+      // Set loading state
+      setSelectedProject(null)
+      setProjectDetailsModalOpen(true)
+      console.log("Modal state set to open:", true)
+      toast.info("Loading project details...")
+      
+      // Fetch full project details
+      const fullDetails = await infinifundContract.getProjectDetails(project.project_id)
+      console.log("Full project details received:", fullDetails)
+      
+      // Combine basic project data with full details
+      const combinedProject = {
+        ...project,
+        icon: fullDetails.icon || "",
+        banner: fullDetails.banner || "",
+        details: fullDetails.details || "No description available",
+        fundingDeadline: fullDetails.fundingDeadline || 0,
+        exists: fullDetails.exists || false,
+        investors: fullDetails.investors || [],
+        milestones: fullDetails.milestones || []
+      }
+      
+      console.log("Combined project data:", combinedProject)
+      setSelectedProject(combinedProject as any)
+      toast.success("Project details loaded")
+    } catch (error) {
+      console.error("Error fetching project details:", error)
+      toast.error("Failed to load project details")
+      
+      // Show basic project data even if fetch fails
+      const basicProject = {
+        ...project,
+        icon: "",
+        banner: "",
+        details: "Unable to load full project details",
+        fundingDeadline: 0,
+        exists: true,
+        investors: [],
+        milestones: []
+      }
+      setSelectedProject(basicProject as any)
     }
   }
 
@@ -305,6 +421,33 @@ export default function AdminPage() {
               <div className="text-sm text-gray-300 font-mono">
                 {userAddress.slice(0, 6)}...{userAddress.slice(-4)}
               </div>
+              <button
+                onClick={loadAdminData}
+                disabled={refreshingData}
+                className="flex items-center gap-2 px-3 py-2 bg-black/30 rounded-lg border border-white/20 text-white hover:bg-black/40 transition-colors disabled:opacity-50"
+              >
+                <RefreshCw className={`w-4 h-4 ${refreshingData ? 'animate-spin' : ''}`} />
+                <span className="text-sm">Refresh</span>
+              </button>
+              <button
+                onClick={() => {
+                  console.log("Test modal button clicked")
+                  setProjectDetailsModalOpen(true)
+                  setSelectedProject({
+                    project_id: 999,
+                    name: "Test Project",
+                    creator: "0x1234567890123456789012345678901234567890",
+                    approvedForFunding: false,
+                    totalFunds: "0",
+                    currentMilestone: 0,
+                    milestoneCount: 3,
+                    fundingExpired: false
+                  })
+                }}
+                className="flex items-center gap-2 px-3 py-2 bg-blue-600 rounded-lg border border-blue-500 text-white hover:bg-blue-700 transition-colors"
+              >
+                <span className="text-sm">Test Modal</span>
+              </button>
             </div>
           </div>
 
@@ -546,21 +689,36 @@ export default function AdminPage() {
                           <span>by {project.creator.slice(0, 6)}...{project.creator.slice(-4)}</span>
                           <span>ID: {project.project_id}</span>
                           <span>{project.milestoneCount} milestones</span>
+                          <span>Funds: {parseFloat(project.totalFunds) / 1e18} FLOW</span>
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          <p>Status: {project.approvedForFunding ? "Approved" : "Pending Review"}</p>
+                          <p>Current Milestone: {project.currentMilestone} / {project.milestoneCount}</p>
+                          <p>Funding Expired: {project.fundingExpired ? "Yes" : "No"}</p>
                         </div>
                       </div>
-                      <div className="flex gap-3">
+                      <div className="flex flex-col gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleViewProjectDetails(project)}
+                          className="border-white/20 text-white hover:bg-white hover:text-black"
+                        >
+                          View Details
+                        </Button>
                         <Link href={`/projects/${project.project_id}`}>
-                          <Button size="sm" variant="outline" className="border-white/20">
-                            View Project
+                          <Button size="sm" variant="outline" className="border-white/20 w-full">
+                            Public View
                           </Button>
                         </Link>
                         <Button
                           size="sm"
-                          onClick={() => handleFinalizeScreening(project.project_id)}
-                          disabled={finalizingProject === project.project_id}
-                          className="bg-black/80 hover:bg-black border border-white/20"
+                          onClick={() => handleApproveProject(project.project_id)}
+                          disabled={finalizingProject === project.project_id || project.approvedForFunding}
+                          className="bg-green-600 hover:bg-green-700 border border-green-500 text-white disabled:opacity-50"
                         >
-                          {finalizingProject === project.project_id ? "Finalizing..." : "Finalize"}
+                          {finalizingProject === project.project_id ? "Approving..." : 
+                           project.approvedForFunding ? "Already Approved" : "Approve for Funding"}
                         </Button>
                       </div>
                     </div>
@@ -724,5 +882,221 @@ export default function AdminPage() {
     )
   }
 
-  return null
+  return (
+    <>
+      {/* Main Content */}
+      {/* Project Details Modal */}
+      <div style={{ zIndex: 10000, position: 'relative' }}>
+        <Dialog open={projectDetailsModalOpen} onOpenChange={setProjectDetailsModalOpen}>
+          <DialogContent 
+            className="bg-black border-white/20 max-w-4xl max-h-[90vh] overflow-y-auto"
+            style={{ zIndex: 9999, position: 'fixed' }}
+          >
+          <DialogHeader>
+            <DialogTitle className="text-white text-xl">
+              {selectedProject ? `Project Details - ${selectedProject.name}` : "Loading Project Details..."}
+            </DialogTitle>
+            <DialogDescription className="text-gray-300">
+              {selectedProject ? "Detailed information about the selected project" : "Please wait while we load the project information..."}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {!selectedProject ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+              <span className="ml-3 text-white">Loading project details...</span>
+            </div>
+          ) : (
+            <div className="space-y-6 mt-4">
+              {/* Project Header with Images */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Project Icon */}
+                <div className="p-4 bg-black/30 border border-white/10 rounded-lg">
+                  <h4 className="text-white font-semibold mb-3">Project Icon</h4>
+                  {(selectedProject as any).icon ? (
+                    <img 
+                      src={(selectedProject as any).icon} 
+                      alt="Project Icon" 
+                      className="w-full h-32 object-cover rounded border border-white/20"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzMzMzMzMyIvPgogIDx0ZXh0IHg9IjUwIiB5PSI1NSIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0IiBmaWxsPSIjOTk5OTk5IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5ObyBJbWFnZTwvdGV4dD4KPC9zdmc+";
+                      }}
+                    />
+                  ) : (
+                    <div className="w-full h-32 bg-gray-700 rounded flex items-center justify-center border border-white/20">
+                      <span className="text-gray-400 text-sm">No Icon Available</span>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Project Banner */}
+                <div className="md:col-span-2 p-4 bg-black/30 border border-white/10 rounded-lg">
+                  <h4 className="text-white font-semibold mb-3">Project Banner</h4>
+                  {(selectedProject as any).banner ? (
+                    <img 
+                      src={(selectedProject as any).banner} 
+                      alt="Project Banner" 
+                      className="w-full h-32 object-cover rounded border border-white/20"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzMzMzMzMyIvPgogIDx0ZXh0IHg9IjIwMCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OTk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+Tm8gQmFubmVyPC90ZXh0Pgo8L3N2Zz4=";
+                      }}
+                    />
+                  ) : (
+                    <div className="w-full h-32 bg-gray-700 rounded flex items-center justify-center border border-white/20">
+                      <span className="text-gray-400 text-sm">No Banner Available</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Project Basic Info */}
+              <div className="p-4 bg-black/30 border border-white/10 rounded-lg">
+                <h3 className="text-white font-bold text-lg mb-4">{selectedProject.name}</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div className="space-y-1">
+                    <span className="text-gray-400 block">Project ID</span>
+                    <span className="text-white font-mono">{selectedProject.project_id}</span>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-gray-400 block">Creator</span>
+                    <span className="text-white font-mono text-xs">
+                      {selectedProject.creator.slice(0, 8)}...{selectedProject.creator.slice(-8)}
+                    </span>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-gray-400 block">Total Funds</span>
+                    <span className="text-white font-semibold">{parseFloat(selectedProject.totalFunds) / 1e18} FLOW</span>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-gray-400 block">Milestones</span>
+                    <span className="text-white">{selectedProject.currentMilestone} / {selectedProject.milestoneCount}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Project Description */}
+              <div className="p-4 bg-black/30 border border-white/10 rounded-lg">
+                <h4 className="text-white font-semibold mb-3">Project Description</h4>
+                <div className="text-gray-300 text-sm leading-relaxed max-h-32 overflow-y-auto">
+                  {(selectedProject as any).details || "No description available for this project."}
+                </div>
+              </div>
+
+              {/* Project Status */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 bg-black/30 border border-white/10 rounded-lg">
+                  <h4 className="text-white font-semibold mb-3">Funding Status</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Approved for Funding:</span>
+                      <span className={`font-medium px-2 py-1 rounded text-xs ${
+                        selectedProject.approvedForFunding 
+                          ? 'bg-green-900 text-green-300' 
+                          : 'bg-yellow-900 text-yellow-300'
+                      }`}>
+                        {selectedProject.approvedForFunding ? 'Approved' : 'Pending Review'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Funding Expired:</span>
+                      <span className={`font-medium px-2 py-1 rounded text-xs ${
+                        selectedProject.fundingExpired 
+                          ? 'bg-red-900 text-red-300' 
+                          : 'bg-green-900 text-green-300'
+                      }`}>
+                        {selectedProject.fundingExpired ? 'Yes' : 'Active'}
+                      </span>
+                    </div>
+                    {(selectedProject as any).fundingDeadline && (selectedProject as any).fundingDeadline > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Funding Deadline:</span>
+                        <span className="text-white text-xs">
+                          {new Date((selectedProject as any).fundingDeadline * 1000).toLocaleDateString()}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="p-4 bg-black/30 border border-white/10 rounded-lg">
+                  <h4 className="text-white font-semibold mb-3">Project Status</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Current Milestone:</span>
+                      <span className="text-white font-medium">{selectedProject.currentMilestone}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Total Milestones:</span>
+                      <span className="text-white font-medium">{selectedProject.milestoneCount}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Project Exists:</span>
+                      <span className={`font-medium px-2 py-1 rounded text-xs ${
+                        (selectedProject as any).exists 
+                          ? 'bg-green-900 text-green-300' 
+                          : 'bg-red-900 text-red-300'
+                      }`}>
+                        {(selectedProject as any).exists ? 'Yes' : 'No'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Investors */}
+              {(selectedProject as any).investors && (selectedProject as any).investors.length > 0 && (
+                <div className="p-4 bg-black/30 border border-white/10 rounded-lg">
+                  <h4 className="text-white font-semibold mb-3">
+                    Investors ({(selectedProject as any).investors.length})
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-h-32 overflow-y-auto">
+                    {(selectedProject as any).investors.map((investor: string, index: number) => (
+                      <div key={index} className="bg-black/20 p-2 rounded border border-white/10">
+                        <span className="text-gray-300 text-xs font-mono">
+                          {investor.slice(0, 8)}...{investor.slice(-8)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Admin Actions */}
+              <div className="flex gap-3 justify-end pt-4 border-t border-white/10">
+                <Button
+                  variant="outline"
+                  onClick={() => setProjectDetailsModalOpen(false)}
+                  className="border-white/20 text-white hover:bg-white hover:text-black"
+                >
+                  Close
+                </Button>
+                <Link href={`/projects/${selectedProject.project_id}`} target="_blank">
+                  <Button variant="outline" className="border-white/20 text-white hover:bg-blue-600">
+                    View Public Page
+                  </Button>
+                </Link>
+                {!selectedProject.approvedForFunding && (
+                  <Button
+                    onClick={() => {
+                      setProjectDetailsModalOpen(false)
+                      handleApproveProject(selectedProject.project_id)
+                    }}
+                    disabled={finalizingProject === selectedProject.project_id}
+                    className="bg-green-600 hover:bg-green-700 border border-green-500 text-white"
+                  >
+                    {finalizingProject === selectedProject.project_id ? "Approving..." : "Approve for Funding"}
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+      </div>
+      
+      {null}
+    </>
+  )
 }
