@@ -29,11 +29,10 @@ const navItems: NavItem[] = [
     ],
   },
   {
-    name: "Dashboard",
-    href: "/dashboard",
+    name: "Account",
+    href: "/userProfile",
     dropdown: [
-      { name: "My Dashboard", href: "/dashboard" },
-      { name: "My Builds", href: "/my-builds" },
+      { name: "My Profile", href: "/userProfile" },
       { name: "My Projects", href: "/my-projects" },
       { name: "Apply Citizenship", href: "/citizenship" },
       { name: "Investors", href: "/investors" },
@@ -224,12 +223,12 @@ export default function Navbar() {
                       </button>
                       <button
                         onClick={() => {
-                          router.push("/dashboard")
+                          router.push("/userProfile")
                           setIsUserMenuOpen(false)
                         }}
                         className="w-full text-left px-4 py-2.5 text-slate-300 hover:text-white hover:bg-slate-800/50 transition-colors text-sm font-medium"
                       >
-                        Dashboard
+                        My Account
                       </button>
                       <div className="border-t border-slate-700/50 my-1" />
                       <button
