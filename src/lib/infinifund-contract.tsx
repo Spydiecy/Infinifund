@@ -132,8 +132,10 @@ export class InfinifundContract {
   }
 
   // Project functions
-  async submitProject(projectData: ProjectData): Promise<ethers.ContractTransactionResponse> {
+  async submitProject(projectData: any) {
     await this.connect();
+    console.log("My proejct data is;:::::::::::::",projectData);
+
     if (!this.contract) throw new Error("Contract not initialized")
     return await this.contract.submitProject(
       projectData.name,
@@ -363,7 +365,7 @@ export class InfinifundContract {
     try {
       // Get all CitizenshipRequested events
       const filter = contract.filters.CitizenshipRequested()
-      const events = await contract.queryFilter(filter, -10000) // Last 10k blocks
+      const events:any = await contract.queryFilter(filter, -10000) // Last 10k blocks
 
       const requests: CitizenshipRequest[] = []
 

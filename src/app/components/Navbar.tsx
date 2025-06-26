@@ -46,17 +46,15 @@ const navItems: NavItem[] = [
     href: "/projects",
     dropdown: [
       { name: "Top Projects", href: "/top-projects" },
-      { name: "Create Hacks", href: "/create-project" },
-      { name: "Latest", href: "/hacks/latest" },
+      { name: "Create Project", href: "/create-project" },
     ],
   },
   {
     name: "Dashboard",
     href: "/dashboard",
     dropdown: [
-      { name: "Apply Citizenship", href: "/Citizenship" },
+      { name: "Apply Citizenship", href: "/citizenship" },
       { name: "investors", href: "/investors" },
-      { name: "Submit Build", href: "/builds/0" },
     ],
   },
   {

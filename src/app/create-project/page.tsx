@@ -17,7 +17,7 @@ import type { ProjectData } from "@/lib/infinifund-contract"
 import { PinataSDK } from "pinata"
 import { toast } from "sonner"
 import { ethers } from "ethers"
-import { useInfinifundContract } from "@/hooks/use-infinifund-contract"
+import {  infinifundContract} from "@/lib/infinifund-contract"
 import { reviewProjectWithAI } from "@/lib/gemini-ai"
 
 const pinata = new PinataSDK({
@@ -100,7 +100,6 @@ export default function CreateProject() {
   const [userAddress, setUserAddress] = useState<string>("")
   const [isConnected, setIsConnected] = useState(false)
   const [isCitizen, setIsCitizen] = useState(false)
-  const infinifundContract = useInfinifundContract()
 
   useEffect(() => {
     const handleAccountsChanged = (accounts: string[]) => {
@@ -288,8 +287,6 @@ export default function CreateProject() {
   // }
 
   const handleFinalSubmit = async () => {
-    console.log("Handle ai submit is running....");
-    
     // if (!aiReview?.approved) {
     //   toast.error("Project must be approved by AI review first")
     //   return
@@ -318,7 +315,7 @@ export default function CreateProject() {
         bannerHash = `ipfs://${bannerUpload.cid}`
       }
 
-      const projectData: ProjectData = {
+      const projectData: any = {
         name: formData.name,
         icon: iconHash,
         banner: bannerHash,
@@ -326,8 +323,9 @@ export default function CreateProject() {
         milestoneDescriptions: milestones.map((m) => m.description),
         fundingDuration: formData.fundingDuration * 24 * 60 * 60,
       }
+      console.log("My Project data is::::::::::::::::",projectData);
+      
 
-      toast.info("🚀 Submitting to Infinita City blockchain...")
 
       // Real contract interaction
       const tx = await infinifundContract.submitProject(projectData)
@@ -341,7 +339,7 @@ export default function CreateProject() {
         (log: any) => log.topics[0] === ethers.id("ProjectSubmitted(uint256,address)"),
       )
 
-      let projectId = "Unknown"
+      let projectId:any = "Unknown"
       if (projectSubmittedEvent) {
         projectId = ethers.toNumber(projectSubmittedEvent.topics[1])
       }
@@ -596,7 +594,7 @@ export default function CreateProject() {
       <AnimatePresence>
         {showReviewModal && aiReview && (
           <Dialog open={showReviewModal} onOpenChange={setShowReviewModal}>
-            <DialogContent className="bg-gray-900 border-gray-700 text-white max-w-2xl overflow-y-scroll">
+            <DialogContent className="bg-gray-900 border-gray-700 text-white max-w-2xl">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-3 text-2xl">
                   {aiReview.approved ? (
@@ -620,7 +618,7 @@ export default function CreateProject() {
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="space-y-6 overflow-y-scroll">
+              <div className="space-y-6">
                 {/* Score */}
                 <div className="text-center">
                   <div className="text-4xl font-bold text-blue-400 mb-2">{aiReview.score}/100</div>
@@ -628,10 +626,10 @@ export default function CreateProject() {
                 </div>
 
                 {/* Feedback */}
-                  {/* <div className="bg-black/50 p-4 rounded-lg border border-gray-700">
-                    <h4 className="font-semibold text-white mb-2">AI Feedback:</h4>
-                    <p className="text-gray-300">{aiReview.feedback}</p>
-                  </div> */}
+                <div className="bg-black/50 p-4 rounded-lg border border-gray-700">
+                  <h4 className="font-semibold text-white mb-2">AI Feedback:</h4>
+                  <p className="text-gray-300">{aiReview.feedback}</p>
+                </div>
 
                 {/* Suggestions */}
                 {aiReview.suggestions.length > 0 && (
@@ -653,7 +651,7 @@ export default function CreateProject() {
                   {true ? (
                     <Button
                       onClick={handleFinalSubmit}
-                     
+                      disabled={isSubmitting}
                       className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white px-6 py-2"
                     >
                       {isSubmitting ? (

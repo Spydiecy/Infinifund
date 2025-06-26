@@ -13,7 +13,7 @@ export const fetchImageUrl = async (cid: string): Promise<string> => {
     const cleanCid = cid.replace("ipfs://", "")
 
     const url = await pinata.gateways.createSignedURL({
-      gateway: "violet-wrong-herring-709.mypinata.cloud",
+      gateway: "jade-added-egret-280.mypinata.cloud",
       cid: cleanCid,
       expires: 1800000000000,
     })
