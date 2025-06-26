@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "NeuraSkill",
+  title: "InfiniFund",
   description: "BlockChain Based Hackathon Management System.",
 };
 

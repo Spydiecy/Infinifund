@@ -42,26 +42,26 @@ const chains: Chain[] = [
 
 const navItems: NavItem[] = [
   {
-    name: "Hacks",
-    href: "/hackathons",
+    name: "Projects",
+    href: "/projects",
     dropdown: [
-      { name: "View Hacks", href: "/hackathons" },
-      { name: "Create Hacks", href: "/create-hack" },
+      { name: "Top Projects", href: "/top-projects" },
+      { name: "Create Hacks", href: "/create-project" },
       { name: "Latest", href: "/hacks/latest" },
     ],
   },
   {
-    name: "Builds",
-    href: "/create-build",
+    name: "Dashboard",
+    href: "/dashboard",
     dropdown: [
-      { name: "My Builds", href: "/my-builds" },
-      { name: "Create Build", href: "/create-build" },
+      { name: "Apply Citizenship", href: "/Citizenship" },
+      { name: "investors", href: "/investors" },
       { name: "Submit Build", href: "/builds/0" },
     ],
   },
   {
-    name: "About",
-    href: "/about",
+    name: "Admin",
+    href: "/admin",
     dropdown: [
       { name: "About", href: "/about" },
       { name: "Terms & Conditions", href: "/termsAndConditions" },
@@ -171,12 +171,12 @@ export default function Navbar() {
           <div onClick={() => router.push("/")} className="flex items-center gap-3 cursor-pointer">
             <Image
               src={logo.src || "/placeholder.svg"}
-              alt="NeuraSkill Logo"
+              alt="InfiniFund Logo"
               width={40}
               height={40}
               className="rounded-full"
             />
-            <span className="text-white text-xl font-semibold">NeuraSkill</span>
+            <span className="text-white text-xl font-semibold">InfiniFund</span>
           </div>
 
           {/* Navigation Items */}

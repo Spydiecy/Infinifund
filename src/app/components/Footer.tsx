@@ -35,7 +35,7 @@ const socialLinks = [
   { icon: Instagram, href: "#" },
   { icon: Twitter, href: "#" },
   { icon: Linkedin, href: "#" },
-  { icon: Github, href: "https://github.com/namanbansal102/NeuraSkill" },
+  { icon: Github, href: "https://github.com/namanbansal102/InfiniFund" },
 ]
 
 export default function Footer() {
@@ -66,7 +66,7 @@ export default function Footer() {
         <motion.div variants={itemVariants} className="lg:col-span-1">
           <Link href="/" className="flex items-center gap-2 mb-4">
             <Bitcoin className="w-8 h-8" />
-            <span className="text-xl font-bold">NeuraSkill</span>
+            <span className="text-xl font-bold">InfiniFund</span>
           </Link>
           <p className="text-gray-400 mb-6">
           NeurAKill is a revolutionary blockchain-based hackathon management platform built on the Flow chain
@@ -108,7 +108,7 @@ export default function Footer() {
         variants={itemVariants}
         className="max-w-7xl mx-auto mt-16 pt-8 border-t border-gray-800 text-center text-gray-400"
       >
-        <p>© 2025 NeuraSkill. All rights reserved</p>
+        <p>© 2025 InfiniFund. All rights reserved</p>
       </motion.div>
     </footer>
   )

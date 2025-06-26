@@ -11,12 +11,13 @@ import {
   CheckCircle,
   XCircle,
   Vote,
-  TrendingUp,
   Calendar,
   User,
   Wallet,
   AlertTriangle,
   Zap,
+  Award,
+  Users,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -27,6 +28,7 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { infinifundContract, type ProjectView, type ProjectDetails } from "@/lib/infinifund-contract"
+import { getImageUrl } from "@/lib/pinata-utils"
 import { toast } from "sonner"
 import { ethers } from "ethers"
 import Link from "next/link"
@@ -38,6 +40,7 @@ export default function ProjectDetailPage() {
 
   const [project, setProject] = useState<ProjectView | null>(null)
   const [projectDetails, setProjectDetails] = useState<ProjectDetails | null>(null)
+  const [milestones, setMilestones] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [userAddress, setUserAddress] = useState<string>("")
   const [isConnected, setIsConnected] = useState(false)
@@ -47,6 +50,8 @@ export default function ProjectDetailPage() {
   const [fundingAmount, setFundingAmount] = useState("")
   const [isVoting, setIsVoting] = useState(false)
   const [isFunding, setIsFunding] = useState(false)
+  const [iconUrl, setIconUrl] = useState<string>("")
+  const [bannerUrl, setBannerUrl] = useState<string>("")
 
   useEffect(() => {
     checkConnection()
@@ -94,6 +99,21 @@ export default function ProjectDetailPage() {
       // Get detailed project data
       const detailsData = await infinifundContract.getProjectDetails(projectId)
       setProjectDetails(detailsData)
+
+      // Load project images
+      if (detailsData.icon) {
+        const iconImageUrl = getImageUrl(detailsData.icon)
+        setIconUrl(iconImageUrl)
+      }
+
+      if (detailsData.banner) {
+        const bannerImageUrl = getImageUrl(detailsData.banner)
+        setBannerUrl(bannerImageUrl)
+      }
+
+      // Get full project with milestones
+      const fullProject = await infinifundContract.getProject(projectId)
+      setMilestones(fullProject.milestones)
 
       if (userAddress) {
         const [citizenStatus, votedStatus, votes] = await Promise.all([
@@ -193,7 +213,7 @@ export default function ProjectDetailPage() {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-orange-500 mx-auto mb-4"></div>
           <p className="text-white text-xl">Loading Project...</p>
         </div>
       </div>
@@ -205,10 +225,13 @@ export default function ProjectDetailPage() {
       <div className="min-h-screen bg-black flex items-center justify-center">
         <Card className="bg-gray-900/50 border-red-500/30 p-8 text-center">
           <XCircle className="h-16 w-16 text-red-400 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-red-400 mb-4">Project Not Found</h2>
-          <p className="text-gray-300 mb-6">The requested project does not exist or has been removed.</p>
+          <h2 className="text-2xl font-bold text-white mb-2">Project Not Found</h2>
+          <p className="text-gray-400 mb-6">The project you're looking for doesn't exist or has been removed.</p>
           <Link href="/projects">
-            <Button className="bg-blue-600 hover:bg-blue-700">Back to Projects</Button>
+            <Button className="bg-orange-600 hover:bg-orange-700">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Projects
+            </Button>
           </Link>
         </Card>
       </div>
@@ -217,21 +240,19 @@ export default function ProjectDetailPage() {
 
   const status = getProjectStatus()
   const progress = project.milestoneCount > 0 ? (project.currentMilestone / project.milestoneCount) * 100 : 0
-  const totalVotes = screeningVotes.votesFor + screeningVotes.votesAgainst
-  const approvalRate = totalVotes > 0 ? (screeningVotes.votesFor / totalVotes) * 100 : 0
   const daysRemaining = getDaysRemaining()
 
   return (
     <div className="min-h-screen bg-black relative overflow-hidden">
       {/* Animated Background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-black to-purple-900/20" />
+      <div className="absolute inset-0 bg-gradient-to-br from-orange-900/20 via-black to-pink-900/20" />
       <div className="absolute inset-0">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse delay-1000" />
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-orange-500/10 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl animate-pulse delay-1000" />
       </div>
 
       <div className="relative z-10 p-6">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-7xl mx-auto">
           {/* Header */}
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
             <div className="flex items-center gap-4 mb-6">
@@ -242,556 +263,417 @@ export default function ProjectDetailPage() {
                 </Button>
               </Link>
               <Badge className={status.color}>{status.text}</Badge>
-              <span className="text-gray-400 text-sm">Project #{project.project_id}</span>
+              <Badge variant="outline" className="border-gray-600 text-gray-300">
+                Project #{project.project_id}
+              </Badge>
             </div>
 
-            <div className="flex items-start justify-between">
+            {/* Banner Image */}
+            {bannerUrl && (
+              <div className="w-full h-64 rounded-lg overflow-hidden mb-6 border border-gray-700">
+                <Image
+                  src={bannerUrl || "/placeholder.svg"}
+                  alt={`${project.name} banner`}
+                  width={1200}
+                  height={256}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            )}
+
+            {/* Project Header */}
+            <div className="flex items-start gap-6">
+              <div className="flex-shrink-0">
+                {iconUrl ? (
+                  <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-800 border-4 border-orange-500/30">
+                    <Image
+                      src={iconUrl || "/placeholder.svg"}
+                      alt={project.name}
+                      width={80}
+                      height={80}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-r from-orange-500 to-pink-500 flex items-center justify-center text-3xl font-bold text-white">
+                    {project.name.charAt(0)}
+                  </div>
+                )}
+              </div>
+
               <div className="flex-1">
                 <h1 className="text-4xl font-bold text-white mb-2">{project.name}</h1>
-                <p className="text-gray-300 text-lg mb-4">{projectDetails.details}</p>
-                <div className="flex items-center gap-4 text-sm text-gray-400">
-                  <div className="flex items-center gap-1">
+                <div className="flex items-center gap-4 text-gray-300 mb-4">
+                  <div className="flex items-center gap-2">
                     <User className="h-4 w-4" />
                     <span>
                       by {project.creator.slice(0, 6)}...{project.creator.slice(-4)}
                     </span>
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4" />
-                    <span>Deadline: {new Date(projectDetails.fundingDeadline * 1000).toLocaleDateString()}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Clock className="h-4 w-4" />
                     <span>{daysRemaining} days remaining</span>
                   </div>
                 </div>
+                <p className="text-gray-300 text-lg leading-relaxed">{projectDetails.details}</p>
               </div>
 
-              {projectDetails.banner && (
-                <div className="w-48 h-32 rounded-lg overflow-hidden bg-gray-800 ml-6">
-                  <Image
-                    src={
-                      projectDetails.banner.startsWith("ipfs://")
-                        ? `https://gateway.pinata.cloud/ipfs/${projectDetails.banner.replace("ipfs://", "")}`
-                        : projectDetails.banner
-                    }
-                    alt={project.name}
-                    width={192}
-                    height={128}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              )}
+              <div className="flex-shrink-0 text-right">
+                <div className="text-3xl font-bold text-green-400 mb-1">{formatEther(project.totalFunds)} ETH</div>
+                <div className="text-sm text-gray-400">Total Funded</div>
+              </div>
             </div>
           </motion.div>
 
-          {/* Stats Cards */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8"
-          >
-            <Card className="bg-gray-900/50 border-green-500/30 backdrop-blur-sm">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <DollarSign className="h-8 w-8 text-green-400" />
-                  <div>
-                    <p className="text-2xl font-bold text-white">{formatEther(project.totalFunds)}</p>
-                    <p className="text-sm text-gray-400">ETH Funded</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-gray-900/50 border-blue-500/30 backdrop-blur-sm">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <Target className="h-8 w-8 text-blue-400" />
-                  <div>
-                    <p className="text-2xl font-bold text-white">
-                      {project.currentMilestone}/{project.milestoneCount}
-                    </p>
-                    <p className="text-sm text-gray-400">Milestones</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-gray-900/50 border-purple-500/30 backdrop-blur-sm">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <Vote className="h-8 w-8 text-purple-400" />
-                  <div>
-                    <p className="text-2xl font-bold text-white">{screeningVotes.votesFor}</p>
-                    <p className="text-sm text-gray-400">Approval Votes</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-gray-900/50 border-yellow-500/30 backdrop-blur-sm">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <TrendingUp className="h-8 w-8 text-yellow-400" />
-                  <div>
-                    <p className="text-2xl font-bold text-white">{Math.round(approvalRate)}%</p>
-                    <p className="text-sm text-gray-400">Approval Rate</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-
           {/* Main Content */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-            <Tabs defaultValue="overview" className="space-y-6">
-              <TabsList className="grid w-full grid-cols-4 bg-gray-900/50 border border-gray-700">
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="milestones">Milestones</TabsTrigger>
-                <TabsTrigger value="voting">Voting</TabsTrigger>
-                <TabsTrigger value="funding">Funding</TabsTrigger>
-              </TabsList>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Left Column - Project Details */}
+            <div className="lg:col-span-2 space-y-6">
+              <Tabs defaultValue="overview" className="w-full">
+                <TabsList className="grid w-full grid-cols-4 bg-gray-900/50">
+                  <TabsTrigger value="overview">Overview</TabsTrigger>
+                  <TabsTrigger value="milestones">Milestones</TabsTrigger>
+                  <TabsTrigger value="voting">Voting</TabsTrigger>
+                  <TabsTrigger value="funding">Funding</TabsTrigger>
+                </TabsList>
 
-              {/* Overview Tab */}
-              <TabsContent value="overview" className="space-y-6">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  <div className="lg:col-span-2 space-y-6">
-                    <Card className="bg-gray-900/50 border-gray-700/50 backdrop-blur-sm">
-                      <CardHeader>
-                        <CardTitle className="text-white">Project Details</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-gray-300 leading-relaxed">{projectDetails.details}</p>
-                      </CardContent>
-                    </Card>
-
-                    <Card className="bg-gray-900/50 border-gray-700/50 backdrop-blur-sm">
-                      <CardHeader>
-                        <CardTitle className="text-white">Progress Overview</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-4">
-                          <div className="flex justify-between text-sm">
-                            <span className="text-gray-400">Milestone Progress</span>
-                            <span className="text-white">{Math.round(progress)}%</span>
-                          </div>
-                          <Progress value={progress} className="h-3" />
-                          <p className="text-sm text-gray-400">
-                            {project.currentMilestone} of {project.milestoneCount} milestones completed
-                          </p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  <div className="space-y-6">
-                    <Card className="bg-gray-900/50 border-gray-700/50 backdrop-blur-sm">
-                      <CardHeader>
-                        <CardTitle className="text-white">Creator</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-                            <User className="h-6 w-6 text-white" />
-                          </div>
-                          <div>
-                            <p className="text-white font-mono text-sm">{project.creator}</p>
-                            <p className="text-gray-400 text-xs">Project Creator</p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <Card className="bg-gray-900/50 border-gray-700/50 backdrop-blur-sm">
-                      <CardHeader>
-                        <CardTitle className="text-white">Timeline</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-3">
-                          <div className="flex justify-between">
-                            <span className="text-gray-400">Funding Deadline</span>
-                            <span className="text-white text-sm">
-                              {new Date(projectDetails.fundingDeadline * 1000).toLocaleDateString()}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-400">Days Remaining</span>
-                            <span
-                              className={`text-sm font-semibold ${daysRemaining > 7 ? "text-green-400" : daysRemaining > 3 ? "text-yellow-400" : "text-red-400"}`}
-                            >
-                              {daysRemaining} days
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-400">Status</span>
-                            <Badge className={status.color}>{status.text}</Badge>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </div>
-              </TabsContent>
-
-              {/* Milestones Tab */}
-              <TabsContent value="milestones" className="space-y-6">
-                <Card className="bg-gray-900/50 border-gray-700/50 backdrop-blur-sm">
-                  <CardHeader>
-                    <CardTitle className="text-white flex items-center gap-2">
-                      <Target className="h-5 w-5 text-blue-400" />
-                      Project Milestones
-                    </CardTitle>
-                    <CardDescription className="text-gray-300">
-                      Track the progress of this project through its defined milestones
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {Array.from({ length: project.milestoneCount }, (_, i) => (
-                        <div
-                          key={i}
-                          className={`p-6 rounded-lg border transition-all duration-300 ${
-                            i < project.currentMilestone
-                              ? "border-green-500/50 bg-green-500/10 shadow-lg shadow-green-500/20"
-                              : i === project.currentMilestone
-                                ? "border-blue-500/50 bg-blue-500/10 shadow-lg shadow-blue-500/20"
-                                : "border-gray-700 bg-gray-800/30"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-4">
-                              {i < project.currentMilestone ? (
-                                <div className="flex items-center justify-center w-12 h-12 rounded-full bg-green-500/20 border-2 border-green-500">
-                                  <CheckCircle className="h-6 w-6 text-green-400" />
-                                </div>
-                              ) : i === project.currentMilestone ? (
-                                <div className="flex items-center justify-center w-12 h-12 rounded-full bg-blue-500/20 border-2 border-blue-500 animate-pulse">
-                                  <Clock className="h-6 w-6 text-blue-400" />
-                                </div>
-                              ) : (
-                                <div className="flex items-center justify-center w-12 h-12 rounded-full bg-gray-700/50 border-2 border-gray-600">
-                                  <span className="text-gray-400 font-semibold">{i + 1}</span>
-                                </div>
-                              )}
-                              <div>
-                                <h3 className="text-white font-semibold text-lg">Milestone {i + 1}</h3>
-                                <p className="text-gray-400">
-                                  {i < project.currentMilestone
-                                    ? "✅ Completed"
-                                    : i === project.currentMilestone
-                                      ? "🔄 In Progress"
-                                      : "⏳ Pending"}
-                                </p>
-                              </div>
-                            </div>
-
-                            {i < project.currentMilestone && (
-                              <div className="text-right">
-                                <div className="text-green-400 font-semibold">Funds Released</div>
-                                <div className="text-sm text-gray-400">
-                                  {formatEther(
-                                    (BigInt(project.totalFunds) / BigInt(project.milestoneCount)).toString(),
-                                  )}{" "}
-                                  ETH
-                                </div>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Progress line for completed milestones */}
-                          {i < project.milestoneCount - 1 && (
-                            <div className="mt-4 ml-6">
-                              <div
-                                className={`w-0.5 h-8 ${i < project.currentMilestone ? "bg-green-500" : "bg-gray-600"}`}
-                              />
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              {/* Voting Tab */}
-              <TabsContent value="voting" className="space-y-6">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <Card className="bg-gray-900/50 border-gray-700/50 backdrop-blur-sm">
+                <TabsContent value="overview" className="space-y-6">
+                  <Card className="bg-gray-900/50 border-gray-700/50">
                     <CardHeader>
-                      <CardTitle className="text-white flex items-center gap-2">
-                        <Vote className="h-5 w-5 text-purple-400" />
-                        Screening Votes
-                      </CardTitle>
-                      <CardDescription className="text-gray-300">
-                        Community voting to approve this project for funding
-                      </CardDescription>
+                      <CardTitle className="text-white">Project Overview</CardTitle>
                     </CardHeader>
-                    <CardContent>
-                      <div className="space-y-6">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="text-center p-4 bg-green-500/10 rounded-lg border border-green-500/30">
-                            <div className="text-2xl font-bold text-green-400">{screeningVotes.votesFor}</div>
-                            <div className="text-sm text-gray-400">Approval Votes</div>
-                          </div>
-                          <div className="text-center p-4 bg-red-500/10 rounded-lg border border-red-500/30">
-                            <div className="text-2xl font-bold text-red-400">{screeningVotes.votesAgainst}</div>
-                            <div className="text-sm text-gray-400">Rejection Votes</div>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="flex items-center gap-3">
+                          <Target className="h-5 w-5 text-orange-400" />
+                          <div>
+                            <div className="text-sm text-gray-400">Milestones</div>
+                            <div className="text-lg font-semibold text-white">{project.milestoneCount}</div>
                           </div>
                         </div>
-
-                        <div className="space-y-2">
-                          <div className="flex justify-between text-sm">
-                            <span className="text-gray-400">Approval Rate</span>
-                            <span className="text-white font-semibold">{Math.round(approvalRate)}%</span>
+                        <div className="flex items-center gap-3">
+                          <Clock className="h-5 w-5 text-pink-400" />
+                          <div>
+                            <div className="text-sm text-gray-400">Current Phase</div>
+                            <div className="text-lg font-semibold text-white">{project.currentMilestone + 1}</div>
                           </div>
-                          <Progress value={approvalRate} className="h-3" />
                         </div>
+                      </div>
 
-                        {totalVotes > 0 && (
-                          <div className="text-center text-sm text-gray-400">Total votes cast: {totalVotes}</div>
-                        )}
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-400">Progress</span>
+                          <span className="text-white">{Math.round(progress)}%</span>
+                        </div>
+                        <Progress value={progress} className="h-3" />
                       </div>
                     </CardContent>
                   </Card>
+                </TabsContent>
 
-                  <Card className="bg-gray-900/50 border-gray-700/50 backdrop-blur-sm">
+                <TabsContent value="milestones" className="space-y-4">
+                  {milestones.map((milestone, index) => (
+                    <motion.div
+                      key={index}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                    >
+                      <Card
+                        className={`bg-gray-900/50 border-gray-700/50 ${
+                          milestone.completed
+                            ? "border-green-500/30"
+                            : index === project.currentMilestone
+                              ? "border-orange-500/30"
+                              : ""
+                        }`}
+                      >
+                        <CardContent className="p-6">
+                          <div className="flex items-start gap-4">
+                            <div className="flex-shrink-0">
+                              {milestone.completed ? (
+                                <CheckCircle className="h-8 w-8 text-green-400" />
+                              ) : index === project.currentMilestone ? (
+                                <Clock className="h-8 w-8 text-orange-400 animate-pulse" />
+                              ) : (
+                                <div className="h-8 w-8 rounded-full border-2 border-gray-600 flex items-center justify-center text-gray-400 text-sm font-bold">
+                                  {index + 1}
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex-1">
+                              <h3 className="text-lg font-semibold text-white mb-2">
+                                Milestone {index + 1}
+                                {milestone.completed && (
+                                  <Badge className="ml-2 bg-green-500/20 text-green-300">Completed</Badge>
+                                )}
+                                {index === project.currentMilestone && !milestone.completed && (
+                                  <Badge className="ml-2 bg-orange-500/20 text-orange-300">Current</Badge>
+                                )}
+                              </h3>
+                              <p className="text-gray-300 mb-4">{milestone.description}</p>
+
+                              {milestone.reportSubmitted && (
+                                <div className="bg-gray-800/50 p-4 rounded-lg mb-4">
+                                  <h4 className="text-sm font-semibold text-yellow-400 mb-2">Report Submitted</h4>
+                                  <div className="flex items-center gap-4 text-sm">
+                                    <div className="flex items-center gap-2 text-green-400">
+                                      <CheckCircle className="h-4 w-4" />
+                                      <span>{milestone.votesFor} Approve</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-red-400">
+                                      <XCircle className="h-4 w-4" />
+                                      <span>{milestone.votesAgainst} Reject</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+
+                              {milestone.completed && (
+                                <div className="text-sm text-green-400">
+                                  ✅ Funds Released: {formatEther(milestone.fundsReleased.toString())} ETH
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  ))}
+                </TabsContent>
+
+                <TabsContent value="voting" className="space-y-6">
+                  <Card className="bg-gray-900/50 border-gray-700/50">
                     <CardHeader>
                       <CardTitle className="text-white flex items-center gap-2">
-                        <Zap className="h-5 w-5 text-yellow-400" />
-                        Cast Your Vote
+                        <Vote className="h-5 w-5" />
+                        Project Screening
                       </CardTitle>
-                      <CardDescription className="text-gray-300">
-                        Help decide if this project should receive funding
-                      </CardDescription>
+                      <CardDescription>Citizens vote to approve or reject projects for funding</CardDescription>
                     </CardHeader>
-                    <CardContent>
-                      {!isConnected ? (
-                        <div className="text-center space-y-4">
-                          <Wallet className="h-12 w-12 text-gray-400 mx-auto" />
-                          <p className="text-gray-400">Connect your wallet to vote</p>
-                          <Button onClick={connectWallet} className="bg-blue-600 hover:bg-blue-700 w-full">
-                            Connect Wallet
-                          </Button>
-                        </div>
-                      ) : !isCitizen ? (
-                        <div className="text-center space-y-4">
-                          <AlertTriangle className="h-12 w-12 text-yellow-400 mx-auto" />
-                          <p className="text-yellow-400 font-semibold">Citizenship Required</p>
-                          <p className="text-gray-400 text-sm">Only citizens can vote on projects</p>
-                          <Link href="/citizenship">
-                            <Button className="bg-yellow-600 hover:bg-yellow-700 w-full">Apply for Citizenship</Button>
-                          </Link>
-                        </div>
-                      ) : hasVoted ? (
-                        <div className="text-center space-y-4">
-                          <CheckCircle className="h-12 w-12 text-green-400 mx-auto" />
-                          <p className="text-green-400 font-semibold">Vote Submitted</p>
-                          <p className="text-gray-400 text-sm">You have already voted on this project</p>
-                        </div>
-                      ) : project.approvedForFunding ? (
-                        <div className="text-center space-y-4">
-                          <CheckCircle className="h-12 w-12 text-green-400 mx-auto" />
-                          <p className="text-green-400 font-semibold">Project Approved</p>
-                          <p className="text-gray-400 text-sm">This project has been approved for funding</p>
-                        </div>
-                      ) : (
-                        <div className="space-y-4">
-                          <Alert className="border-blue-500/30 bg-blue-500/10">
-                            <Vote className="h-4 w-4 text-blue-400" />
-                            <AlertDescription className="text-blue-300">
-                              Your vote helps determine if this project receives community funding. Vote responsibly!
-                            </AlertDescription>
-                          </Alert>
-
-                          <div className="grid grid-cols-2 gap-3">
-                            <Button
-                              onClick={() => handleVote(true)}
-                              disabled={isVoting}
-                              className="bg-green-600 hover:bg-green-700 h-12"
-                            >
-                              {isVoting ? (
-                                <Clock className="h-4 w-4 mr-2 animate-spin" />
-                              ) : (
-                                <CheckCircle className="h-4 w-4 mr-2" />
-                              )}
-                              Approve
-                            </Button>
-                            <Button
-                              onClick={() => handleVote(false)}
-                              disabled={isVoting}
-                              variant="outline"
-                              className="border-red-500 text-red-400 hover:bg-red-500/10 h-12"
-                            >
-                              {isVoting ? (
-                                <Clock className="h-4 w-4 mr-2 animate-spin" />
-                              ) : (
-                                <XCircle className="h-4 w-4 mr-2" />
-                              )}
-                              Reject
-                            </Button>
+                    <CardContent className="space-y-6">
+                      {/* Voting Stats */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-green-500/10 p-4 rounded-lg border border-green-500/20">
+                          <div className="flex items-center gap-2 mb-2">
+                            <CheckCircle className="h-5 w-5 text-green-400" />
+                            <span className="text-green-400 font-semibold">Approve</span>
                           </div>
+                          <div className="text-2xl font-bold text-white">{screeningVotes.votesFor}</div>
+                        </div>
+                        <div className="bg-red-500/10 p-4 rounded-lg border border-red-500/20">
+                          <div className="flex items-center gap-2 mb-2">
+                            <XCircle className="h-5 w-5 text-red-400" />
+                            <span className="text-red-400 font-semibold">Reject</span>
+                          </div>
+                          <div className="text-2xl font-bold text-white">{screeningVotes.votesAgainst}</div>
+                        </div>
+                      </div>
+
+                      {/* Voting Actions */}
+                      {!isConnected ? (
+                        <Alert>
+                          <Wallet className="h-4 w-4" />
+                          <AlertDescription>Connect your wallet to participate in voting</AlertDescription>
+                        </Alert>
+                      ) : !isCitizen ? (
+                        <Alert>
+                          <AlertTriangle className="h-4 w-4" />
+                          <AlertDescription>
+                            Only citizens can vote on project screening. Apply for citizenship first.
+                          </AlertDescription>
+                        </Alert>
+                      ) : hasVoted ? (
+                        <Alert>
+                          <CheckCircle className="h-4 w-4" />
+                          <AlertDescription>You have already voted on this project.</AlertDescription>
+                        </Alert>
+                      ) : project.approvedForFunding ? (
+                        <Alert>
+                          <CheckCircle className="h-4 w-4" />
+                          <AlertDescription>This project has already been approved for funding.</AlertDescription>
+                        </Alert>
+                      ) : (
+                        <div className="flex gap-4">
+                          <Button
+                            onClick={() => handleVote(true)}
+                            disabled={isVoting}
+                            className="bg-green-600 hover:bg-green-700 flex-1"
+                          >
+                            {isVoting ? (
+                              <Clock className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                              <CheckCircle className="h-4 w-4 mr-2" />
+                            )}
+                            Approve Project
+                          </Button>
+                          <Button
+                            onClick={() => handleVote(false)}
+                            disabled={isVoting}
+                            variant="outline"
+                            className="border-red-500 text-red-400 hover:bg-red-500/10 flex-1"
+                          >
+                            {isVoting ? (
+                              <Clock className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                              <XCircle className="h-4 w-4 mr-2" />
+                            )}
+                            Reject Project
+                          </Button>
                         </div>
                       )}
                     </CardContent>
                   </Card>
-                </div>
-              </TabsContent>
+                </TabsContent>
 
-              {/* Funding Tab */}
-              <TabsContent value="funding" className="space-y-6">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <Card className="bg-gray-900/50 border-gray-700/50 backdrop-blur-sm">
+                <TabsContent value="funding" className="space-y-6">
+                  <Card className="bg-gray-900/50 border-gray-700/50">
                     <CardHeader>
                       <CardTitle className="text-white flex items-center gap-2">
-                        <DollarSign className="h-5 w-5 text-green-400" />
+                        <DollarSign className="h-5 w-5" />
                         Fund This Project
                       </CardTitle>
-                      <CardDescription className="text-gray-300">
-                        Support this project by contributing ETH
-                      </CardDescription>
+                      <CardDescription>Support breakthrough innovation with your investment</CardDescription>
                     </CardHeader>
-                    <CardContent>
-                      {!isConnected ? (
-                        <div className="text-center space-y-4">
-                          <Wallet className="h-12 w-12 text-gray-400 mx-auto" />
-                          <p className="text-gray-400">Connect your wallet to fund this project</p>
-                          <Button onClick={connectWallet} className="bg-blue-600 hover:bg-blue-700 w-full">
-                            Connect Wallet
-                          </Button>
-                        </div>
-                      ) : !project.approvedForFunding ? (
-                        <div className="text-center space-y-4">
-                          <Clock className="h-12 w-12 text-yellow-400 mx-auto" />
-                          <p className="text-yellow-400 font-semibold">Awaiting Approval</p>
-                          <p className="text-gray-400 text-sm">
-                            This project must be approved by the community before it can receive funding
-                          </p>
-                        </div>
+                    <CardContent className="space-y-6">
+                      {!project.approvedForFunding ? (
+                        <Alert>
+                          <AlertTriangle className="h-4 w-4" />
+                          <AlertDescription>
+                            This project must be approved by citizens before it can receive funding.
+                          </AlertDescription>
+                        </Alert>
                       ) : project.fundingExpired ? (
-                        <div className="text-center space-y-4">
-                          <XCircle className="h-12 w-12 text-red-400 mx-auto" />
-                          <p className="text-red-400 font-semibold">Funding Expired</p>
-                          <p className="text-gray-400 text-sm">The funding period for this project has ended</p>
-                        </div>
-                      ) : daysRemaining <= 0 ? (
-                        <div className="text-center space-y-4">
-                          <XCircle className="h-12 w-12 text-red-400 mx-auto" />
-                          <p className="text-red-400 font-semibold">Deadline Passed</p>
-                          <p className="text-gray-400 text-sm">The funding deadline has passed</p>
-                        </div>
+                        <Alert>
+                          <XCircle className="h-4 w-4" />
+                          <AlertDescription>The funding period for this project has expired.</AlertDescription>
+                        </Alert>
+                      ) : !isConnected ? (
+                        <Alert>
+                          <Wallet className="h-4 w-4" />
+                          <AlertDescription>Connect your wallet to fund this project</AlertDescription>
+                        </Alert>
                       ) : (
                         <div className="space-y-4">
-                          <Alert className="border-green-500/30 bg-green-500/10">
-                            <DollarSign className="h-4 w-4 text-green-400" />
-                            <AlertDescription className="text-green-300">
-                              Funds will be released to the creator as milestones are completed and approved by
-                              investors.
-                            </AlertDescription>
-                          </Alert>
-
-                          <div className="space-y-3">
-                            <Label className="text-gray-300">Funding Amount (ETH)</Label>
+                          <div>
+                            <Label htmlFor="funding-amount" className="text-white">
+                              Funding Amount (ETH)
+                            </Label>
                             <Input
+                              id="funding-amount"
                               type="number"
                               step="0.001"
                               min="0"
+                              placeholder="0.01"
                               value={fundingAmount}
                               onChange={(e) => setFundingAmount(e.target.value)}
-                              placeholder="0.1"
-                              className="bg-black/50 border-gray-600 text-white"
+                              className="bg-gray-800 border-gray-600 text-white mt-2"
                             />
                           </div>
-
                           <Button
                             onClick={handleFunding}
                             disabled={isFunding || !fundingAmount}
-                            className="w-full bg-green-600 hover:bg-green-700 h-12"
+                            className="w-full bg-gradient-to-r from-orange-600 to-pink-600 hover:from-orange-700 hover:to-pink-700"
                           >
                             {isFunding ? (
-                              <>
-                                <Clock className="h-4 w-4 mr-2 animate-spin" />
-                                Processing Transaction...
-                              </>
+                              <Clock className="h-4 w-4 mr-2 animate-spin" />
                             ) : (
-                              <>
-                                <DollarSign className="h-4 w-4 mr-2" />
-                                Fund Project
-                              </>
+                              <Zap className="h-4 w-4 mr-2" />
                             )}
+                            Fund Project
                           </Button>
                         </div>
                       )}
                     </CardContent>
                   </Card>
+                </TabsContent>
+              </Tabs>
+            </div>
 
-                  <Card className="bg-gray-900/50 border-gray-700/50 backdrop-blur-sm">
-                    <CardHeader>
-                      <CardTitle className="text-white flex items-center gap-2">
-                        <TrendingUp className="h-5 w-5 text-purple-400" />
-                        Funding Statistics
-                      </CardTitle>
-                      <CardDescription className="text-gray-300">Current funding status and timeline</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="text-center p-3 bg-black/30 rounded-lg">
-                            <div className="text-xl font-bold text-white">{formatEther(project.totalFunds)}</div>
-                            <div className="text-xs text-gray-400">ETH Raised</div>
-                          </div>
-                          <div className="text-center p-3 bg-black/30 rounded-lg">
-                            <div className="text-xl font-bold text-white">{projectDetails.investors.length}</div>
-                            <div className="text-xs text-gray-400">Investors</div>
-                          </div>
-                        </div>
-
-                        <div className="space-y-3">
-                          <div className="flex justify-between">
-                            <span className="text-gray-400">Funding Deadline</span>
-                            <span className="text-white text-sm">
-                              {new Date(projectDetails.fundingDeadline * 1000).toLocaleDateString()}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-400">Days Remaining</span>
-                            <span
-                              className={`text-sm font-semibold ${
-                                daysRemaining > 7
-                                  ? "text-green-400"
-                                  : daysRemaining > 3
-                                    ? "text-yellow-400"
-                                    : "text-red-400"
-                              }`}
-                            >
-                              {daysRemaining} days
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-400">Funds per Milestone</span>
-                            <span className="text-white text-sm">
-                              {formatEther(
-                                (BigInt(project.totalFunds) / BigInt(project.milestoneCount || 1)).toString(),
-                              )}{" "}
-                              ETH
-                            </span>
-                          </div>
-                        </div>
-
-                        {daysRemaining <= 7 && daysRemaining > 0 && (
-                          <Alert className="border-yellow-500/30 bg-yellow-500/10">
-                            <AlertTriangle className="h-4 w-4 text-yellow-400" />
-                            <AlertDescription className="text-yellow-300">
-                              Funding deadline approaching! Only {daysRemaining} days left.
-                            </AlertDescription>
-                          </Alert>
-                        )}
+            {/* Right Column - Stats & Actions */}
+            <div className="space-y-6">
+              {/* Connection Status */}
+              <Card className="bg-gray-900/50 border-gray-700/50">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div
+                      className={`w-3 h-3 rounded-full ${isConnected ? "bg-green-400" : "bg-red-400"} animate-pulse`}
+                    />
+                    <span className="text-white font-medium">
+                      {isConnected ? "Wallet Connected" : "Wallet Disconnected"}
+                    </span>
+                  </div>
+                  {isConnected ? (
+                    <div className="space-y-2 text-sm text-gray-300">
+                      <div>
+                        Address: {userAddress.slice(0, 6)}...{userAddress.slice(-4)}
                       </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              </TabsContent>
-            </Tabs>
-          </motion.div>
+                      <div>Citizen: {isCitizen ? "✅ Yes" : "❌ No"}</div>
+                    </div>
+                  ) : (
+                    <Button onClick={connectWallet} className="w-full bg-orange-600 hover:bg-orange-700">
+                      <Wallet className="h-4 w-4 mr-2" />
+                      Connect Wallet
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Project Stats */}
+              <Card className="bg-gray-900/50 border-gray-700/50">
+                <CardHeader>
+                  <CardTitle className="text-white">Project Statistics</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-400">Total Funding</span>
+                    <span className="text-green-400 font-semibold">{formatEther(project.totalFunds)} ETH</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-400">Milestones</span>
+                    <span className="text-white">
+                      {project.currentMilestone} / {project.milestoneCount}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-400">Progress</span>
+                    <span className="text-orange-400">{Math.round(progress)}%</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-400">Days Left</span>
+                    <span className="text-pink-400">{daysRemaining} days</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Quick Actions */}
+              <Card className="bg-gray-900/50 border-gray-700/50">
+                <CardHeader>
+                  <CardTitle className="text-white">Quick Actions</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Link href="/projects" className="block">
+                    <Button variant="outline" className="w-full border-gray-600 text-gray-300">
+                      <ArrowLeft className="h-4 w-4 mr-2" />
+                      Back to Projects
+                    </Button>
+                  </Link>
+                  <Link href="/top-projects" className="block">
+                    <Button variant="outline" className="w-full border-gray-600 text-gray-300">
+                      <Award className="h-4 w-4 mr-2" />
+                      Top Projects
+                    </Button>
+                  </Link>
+                  <Link href="/investors" className="block">
+                    <Button variant="outline" className="w-full border-gray-600 text-gray-300">
+                      <Users className="h-4 w-4 mr-2" />
+                      Investor Leaderboard
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </div>
       </div>
     </div>

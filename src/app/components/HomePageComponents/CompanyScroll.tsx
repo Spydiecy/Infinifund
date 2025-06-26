@@ -2,13 +2,19 @@
 
 import { motion } from "framer-motion"
 import Image from "next/image"
+import one from "../.../../../../../public/sponsor-images/1.png";
+import two from "../.../../../../../public/sponsor-images/2.png";
+import three from "../.../../../../../public/sponsor-images/3.png";
+import four from "../.../../../../../public/sponsor-images/4.png";
+import five from "../.../../../../../public/sponsor-images/5.png";
+import six from "../.../../../../../public/sponsor-images/6.png";
 
 const companies = [
-  { name: "Versatile", logo: "https://www.base.org/document/apple-touch-icon.png" },
-  { name: "Circle", logo: "https://www.base.org/document/apple-touch-icon.png" },
-  { name: "Paribuhub", logo: "https://www.base.org/document/apple-touch-icon.png" },
-  { name: "Edu Chain", logo: "https://static-files.risein.com/animoca.png" },
-  { name: "Aptos", logo: "https://static-files.risein.com/Homepage-Sui.png" },
+  { name: "Versatile", logo:one.src },
+  { name: "Circle", logo: two.src },
+  { name: "Paribuhub", logo: three.src },
+  { name: "Edu Chain", logo: four.src },
+  { name: "Aptos", logo: five.src },
 ]
 
 // Duplicate the companies for smooth looping

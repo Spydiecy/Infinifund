@@ -430,4 +430,4 @@ export class InfinifundContract {
   }
 }
 
-export const infinifundContract = new InfinifundContract()
+export const infinifundContract:any = new InfinifundContract()

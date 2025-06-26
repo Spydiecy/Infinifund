@@ -24,31 +24,31 @@ export function InfiniteMovingCardsDemo() {
 const testimonials = [
   {
     quote:
-      "NeuraSkill brings transparency and fairness to hackathons. Its open-source nature ensures that anyone can contribute, verify, and improve the system.",
+      "InfiniFund brings transparency and fairness to hackathons. Its open-source nature ensures that anyone can contribute, verify, and improve the system.",
     name: "Satoshi Nakamoto",
     title: "Blockchain Pioneer",
   },
   {
     quote:
-      "Decentralization is the future, and NeuraSkill embodies this vision. With smart contracts and AI-driven evaluations, it creates a trustless and efficient ecosystem.",
+      "Decentralization is the future, and InfiniFund embodies this vision. With smart contracts and AI-driven evaluations, it creates a trustless and efficient ecosystem.",
     name: "Vitalik Buterin",
     title: "Ethereum Co-Founder",
   },
   {
     quote:
-      "An open-source hackathon platform like NeuraSkill fosters innovation by allowing developers to build upon and refine its features.",
+      "An open-source hackathon platform like InfiniFund fosters innovation by allowing developers to build upon and refine its features.",
     name: "Linus Torvalds",
     title: "Creator of Linux",
   },
   {
     quote:
-      "With open-source transparency, NeuraSkill eliminates biases in project selection, ensuring fair competition through AI-powered ranking and ETH-based voting.",
+      "With open-source transparency, InfiniFund eliminates biases in project selection, ensuring fair competition through AI-powered ranking and ETH-based voting.",
     name: "Nick Szabo",
     title: "Smart Contracts Pioneer",
   },
   {
     quote:
-      "NeuraSkill is redefining how hackathons operate. By leveraging blockchain and AI, it guarantees fairness, transparency, and automated prize distribution.",
+      "InfiniFund is redefining how hackathons operate. By leveraging blockchain and AI, it guarantees fairness, transparency, and automated prize distribution.",
     name: "Andreas M. Antonopoulos",
     title: "Bitcoin Advocate & Author",
   },
