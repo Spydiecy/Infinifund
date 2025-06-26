@@ -3,11 +3,12 @@
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Search, ChevronDown } from "lucide-react"
-import { ethers } from "ethers"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import logo from "./logo.jpg"
-import { infinifundContract } from "@/lib/infinifund-contract"
+import { ConnectButton } from '@rainbow-me/rainbowkit'
+import { useAccount, useDisconnect, useSwitchChain } from 'wagmi'
+import { flowTestnet } from '@/lib/rainbowkit-config'
 
 interface NavItem {
   name: string
@@ -29,15 +30,21 @@ interface Chain {
 
 const chains: Chain[] = [
   {
+    name: "Flow EVM Testnet",
+    image: "https://avatars.githubusercontent.com/u/62387156?s=280&v=4",  
+    contractAddress: process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0xbc29335737795E7E6839882D1aF663e21Db0E736",
+    chainId: "0x221", // 545 in decimal (Flow EVM Testnet)
+    rpcUrl: "https://testnet.evm.nodes.onflow.org",
+    blockExplorerUrl: "https://evm-testnet.flowscan.io",
+  },
+  {
     name: "Root Porcini",
     image: "https://pbs.twimg.com/profile_images/1658639949246386176/6T1Tapl__400x400.jpg",  
     contractAddress: "0x96F439337a2Af4Ff32E867DDf6961cd0B950d6e6",
-    chainId: "0x1DF8", // Replace with actual Flow Testnet chain ID
-    rpcUrl: "https://porcini.rootnet.app/archive", // Replace with actual RPC URL
-    blockExplorerUrl: "https://porcini.rootscan.io", // Replace with actual block explorer URL
+    chainId: "0x1DF8",
+    rpcUrl: "https://porcini.rootnet.app/archive",
+    blockExplorerUrl: "https://porcini.rootscan.io",
   }
-
-  
 ]
 
 const navItems: NavItem[] = [
@@ -69,14 +76,17 @@ const navItems: NavItem[] = [
 
 export default function Navbar() {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null)
-  const [isWalletConnected, setIsWalletConnected] = useState(false)
-  const [account, setAccount] = useState("")
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<string[]>([])
   const [isScrolled, setIsScrolled] = useState(false)
   const [selectedChain, setSelectedChain] = useState<Chain>(chains[0])
   const [isChainDropdownOpen, setIsChainDropdownOpen] = useState(false)
   const router = useRouter()
+  
+  // Use RainbowKit hooks
+  const { address, isConnected } = useAccount()
+  const { disconnect } = useDisconnect()
+  const { switchChain } = useSwitchChain()
 
   useEffect(() => {
     const handleScroll = () => {
@@ -97,9 +107,21 @@ export default function Navbar() {
     }
   }, [])
 
-  const connectWallet = async () => {
-    let k=infinifundContract;
-    await k.connect()
+  const handleDisconnect = async () => {
+    try {
+      disconnect()
+    } catch (error) {
+      console.error("Failed to disconnect wallet:", error)
+    }
+  }
+
+  const handleSwitchToFlowEvm = async () => {
+    try {
+      switchChain({ chainId: flowTestnet.id })
+      setIsChainDropdownOpen(false)
+    } catch (error) {
+      console.error("Failed to switch to Flow EVM:", error)
+    }
   }
 
   const handleSearch = (query: string) => {
@@ -110,51 +132,17 @@ export default function Navbar() {
     setSearchResults(query ? mockResults : [])
   }
 
-  const switchChain = async (chain: Chain) => {
-    if (typeof window.ethereum !== "undefined") {
-      try {
-        // Try to switch to the chain
-        await window.ethereum.request({
-          method: "wallet_switchEthereumChain",
-          params: [{ chainId: chain.chainId }],
-        })
-      } catch (switchError: any) {
-        // This error code indicates that the chain has not been added to MetaMask.
-        if (switchError.code === 4902) {
-          try {
-            await window.ethereum.request({
-              method: "wallet_addEthereumChain",
-              params: [
-                {
-                  chainId: chain.chainId,
-                  chainName: chain.name,
-                  nativeCurrency: {
-                    name: "Native Token",
-                    symbol: "ETH", // Replace with the actual symbol
-                    decimals: 18,
-                  },
-                  rpcUrls: [chain.rpcUrl], // You need to add this to your Chain interface
-                  blockExplorerUrls: [chain.blockExplorerUrl], // You need to add this to your Chain interface
-                },
-              ],
-            })
-          } catch (addError) {
-            console.error("Error adding chain:", addError)
-          }
-        } else {
-          console.error("Error switching chain:", switchError)
-        }
-      }
-    }
-  }
-
   const handleChainSelect = async (chain: Chain) => {
     setSelectedChain(chain)
     localStorage.setItem("selectedChain", JSON.stringify(chain))
     localStorage.setItem("CONTRACT_ADD", chain.contractAddress)
     setIsChainDropdownOpen(false)
 
-    await switchChain(chain)
+    try {
+      switchChain({ chainId: flowTestnet.id })
+    } catch (error) {
+      console.error("Error switching chain:", error)
+    }
   }
 
   return (
@@ -252,40 +240,139 @@ export default function Navbar() {
 
           {/* Right Section */}
           <div className="flex items-center gap-4">
-            {isWalletConnected ? (
-              <div
-                onClick={() => router.push("/userProfile")}
-                className="flex items-center gap-2 bg-black/30 backdrop-blur-sm text-white px-4 py-2 rounded-lg cursor-pointer border border-white/10"
-              >
-                <div className="relative">
-                  <div className="w-2 h-2 rounded-full bg-green-500 absolute -top-1 -right-1 animate-pulse" />
-                  <div className="w-5 h-5 rounded-full bg-white/20" />
+            {isConnected ? (
+              <div className="relative">
+                <div
+                  onClick={() => setIsChainDropdownOpen(!isChainDropdownOpen)}
+                  className="flex items-center gap-2 bg-black/30 backdrop-blur-sm text-white px-4 py-2 rounded-lg cursor-pointer border border-white/10 hover:bg-white/10 transition-colors"
+                >
+                  <div className="relative">
+                    <div className="w-2 h-2 rounded-full bg-green-500 absolute -top-1 -right-1 animate-pulse" />
+                    <div className="w-5 h-5 rounded-full bg-white/20" />
+                  </div>
+                  <span className="text-sm">
+                    {address?.slice(0, 6)}...{address?.slice(-4)}
+                  </span>
+                  <ChevronDown className="w-4 h-4" />
                 </div>
-                <span className="text-sm">
-                  {account.slice(0, 6)}...{account.slice(-4)}
-                </span>
+                
+                {/* Wallet Dropdown Menu */}
+                <AnimatePresence>
+                  {isChainDropdownOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      transition={{ duration: 0.2 }}
+                      className="absolute top-full right-0 mt-2 w-48 bg-black/30 backdrop-blur-md rounded-lg shadow-lg py-2 border border-white/10 z-50"
+                    >
+                      <div
+                        className="flex items-center gap-2 px-4 py-2 text-white hover:bg-white/10 transition-colors cursor-pointer"
+                        onClick={() => {
+                          router.push("/userProfile")
+                          setIsChainDropdownOpen(false)
+                        }}
+                      >
+                        <span>👤 Profile</span>
+                      </div>
+                      <div
+                        className="flex items-center gap-2 px-4 py-2 text-white hover:bg-white/10 transition-colors cursor-pointer"
+                        onClick={handleSwitchToFlowEvm}
+                      >
+                        <span>🔄 Switch to Flow EVM</span>
+                      </div>
+                      <div className="border-t border-white/10 my-1" />
+                      <div
+                        className="flex items-center gap-2 px-4 py-2 text-red-400 hover:bg-white/10 transition-colors cursor-pointer"
+                        onClick={() => {
+                          handleDisconnect()
+                          setIsChainDropdownOpen(false)
+                        }}
+                      >
+                        <span>🔌 Disconnect</span>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             ) : (
               <div className="relative">
-                <div className="flex text-white items-center justify-center">
+                <ConnectButton.Custom>
+                  {({
+                    account,
+                    chain,
+                    openAccountModal,
+                    openChainModal,
+                    openConnectModal,
+                    authenticationStatus,
+                    mounted,
+                  }) => {
+                    const ready = mounted && authenticationStatus !== 'loading'
+                    const connected =
+                      ready &&
+                      account &&
+                      chain &&
+                      (!authenticationStatus ||
+                        authenticationStatus === 'authenticated')
 
-                <button onClick={connectWallet} className="p-[3px] relative">
-                  <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-lg" />
-                  <div className="px-3 py-2 bg-black rounded-[6px] relative group transition duration-200 text-white hover:scale-[102%] flex items-center gap-2">
-                    <span>Initialize Contract(temporary)</span>
-                   
-                  </div>
-                </button>
-                 <ChevronDown
-                      className="w-7 h-7 cursor-pointer  hover:border-2 hover:rounded-lg "
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setIsChainDropdownOpen(!isChainDropdownOpen)
-                      }}
-                      />
+                    return (
+                      <div
+                        {...(!ready && {
+                          'aria-hidden': true,
+                          'style': {
+                            opacity: 0,
+                            pointerEvents: 'none',
+                            userSelect: 'none',
+                          },
+                        })}
+                      >
+                        {(() => {
+                          if (!connected) {
+                            return (
+                              <div className="flex text-white items-center justify-center">
+                                <button onClick={openConnectModal} className="p-[3px] relative">
+                                  <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-lg" />
+                                  <div className="px-3 py-2 bg-black rounded-[6px] relative group transition duration-200 text-white hover:scale-[102%] flex items-center gap-2">
+                                    <span>Connect Wallet</span>
+                                  </div>
+                                </button>
+                                <ChevronDown
+                                  className="w-7 h-7 cursor-pointer hover:border-2 hover:rounded-lg"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setIsChainDropdownOpen(!isChainDropdownOpen)
+                                  }}
+                                />
+                              </div>
+                            )
+                          }
+
+                          return (
+                            <div className="flex text-white items-center justify-center">
+                              <button 
+                                onClick={openAccountModal}
+                                className="flex items-center gap-2 bg-black/30 backdrop-blur-sm text-white px-4 py-2 rounded-lg cursor-pointer border border-white/10 hover:bg-white/10 transition-colors"
+                              >
+                                <div className="relative">
+                                  <div className="w-2 h-2 rounded-full bg-green-500 absolute -top-1 -right-1 animate-pulse" />
+                                  <div className="w-5 h-5 rounded-full bg-white/20" />
+                                </div>
+                                <span className="text-sm">
+                                  {account.displayName || `${account.address.slice(0, 6)}...${account.address.slice(-4)}`}
+                                </span>
+                                <ChevronDown className="w-4 h-4" />
+                              </button>
+                            </div>
+                          )
+                        })()}
                       </div>
+                    )
+                  }}
+                </ConnectButton.Custom>
+                
+                {/* Chain Dropdown Menu for non-connected state */}
                 <AnimatePresence>
-                  {isChainDropdownOpen && (
+                  {isChainDropdownOpen && !isConnected && (
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}

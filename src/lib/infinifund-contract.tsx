@@ -78,13 +78,18 @@ export class InfinifundContract {
   private provider: ethers.BrowserProvider | null = null
 
   constructor() {
-    this.initializeProvider()
+    // Provider will be set via setProvider method from wallet context
   }
 
   private async initializeProvider() {
-    if (typeof window !== "undefined" && window.ethereum) {
-      this.provider = new ethers.BrowserProvider(window.ethereum)
-    }
+    // Provider will be initialized from wallet context, not window.ethereum
+  }
+
+  // New method to initialize with external provider and signer
+  initializeWithProvider(provider: ethers.BrowserProvider, signer: ethers.Signer) {
+    this.provider = provider
+    this.signer = signer
+    this.contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer)
   }
 
   async connect(): Promise<string> {
