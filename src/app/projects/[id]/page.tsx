@@ -28,7 +28,7 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { infinifundContract, type ProjectView, type ProjectDetails } from "@/lib/infinifund-contract"
-import { getImageUrl } from "@/lib/pinata-utils"
+import { getImageUrl,fetchImageUrl } from "@/lib/pinata-utils"
 import { toast } from "sonner"
 import { ethers } from "ethers"
 import Link from "next/link"
@@ -102,12 +102,12 @@ export default function ProjectDetailPage() {
 
       // Load project images
       if (detailsData.icon) {
-        const iconImageUrl = getImageUrl(detailsData.icon)
+        const iconImageUrl = await fetchImageUrl(detailsData.icon)
         setIconUrl(iconImageUrl)
       }
 
       if (detailsData.banner) {
-        const bannerImageUrl = getImageUrl(detailsData.banner)
+        const bannerImageUrl =await  fetchImageUrl(detailsData.banner)
         setBannerUrl(bannerImageUrl)
       }
 

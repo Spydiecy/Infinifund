@@ -33,7 +33,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { infinifundContract, type ProjectView } from "@/lib/infinifund-contract"
-import { getImageUrl } from "@/lib/pinata-utils"
+import { getImageUrl,fetchImageUrl } from "@/lib/pinata-utils"
 import { reviewProjectWithAI } from "@/lib/gemini-ai"
 import { toast } from "sonner"
 import Image from "next/image"
@@ -577,7 +577,7 @@ function ProjectCard({
 
       // Load project icon
       if (details.icon) {
-        const url = getImageUrl(details.icon)
+        const url =await  fetchImageUrl(details.icon)
         setIconUrl(url)
       }
     } catch (error) {
