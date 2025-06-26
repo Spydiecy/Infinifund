@@ -252,22 +252,61 @@ export class InfinifundContract {
     return await contract.milestoneInvestorVoted(projectId, milestoneId, address)
   }
 
-  async getUserProjects(address: string): Promise<number[]> {
+  async getUserProjects(address: string): Promise<ProjectView[]> {
     try {
       const contract = this.getReadContract()
-      const projects = await contract.getUserProjects(address)
-      return projects.map((p: any) => Number(p))
+      const projectIds = await contract.getUserProjects(address)
+      const projects: ProjectView[] = []
+      
+      for (const id of projectIds) {
+        try {
+          const projectData = await contract.getProjectView(id)
+          projects.push({
+            project_id: Number(projectData.project_id),
+            name: projectData.name,
+            creator: projectData.creator,
+            approvedForFunding: projectData.approvedForFunding,
+            totalFunds: projectData.totalFunds.toString(),
+            currentMilestone: Number(projectData.currentMilestone),
+            milestoneCount: Number(projectData.milestoneCount),
+            fundingExpired: projectData.fundingExpired,
+          })
+        } catch (error) {
+          console.error(`Error fetching project ${id}:`, error)
+        }
+      }
+      
+      return projects
     } catch (error) {
       console.error("Error fetching user projects:", error)
       return []
     }
   }
 
-  async getUserInvestments(address: string): Promise<number[]> {
+  async getUserInvestments(address: string): Promise<any[]> {
     try {
       const contract = this.getReadContract()
-      const investments = await contract.getUserInvestments(address)
-      return investments.map((p: any) => Number(p))
+      const investmentIds = await contract.getUserInvestments(address)
+      const investments: any[] = []
+      
+      for (const id of investmentIds) {
+        try {
+          const projectData = await contract.getProjectView(id)
+          const investmentAmount = await contract.projectInvestors(id, address)
+          
+          investments.push({
+            projectId: Number(id),
+            projectTitle: projectData.name,
+            amount: investmentAmount,
+            timestamp: Date.now() / 1000, // We'll use current timestamp since we don't have investment timestamps
+            status: projectData.fundingExpired ? 'Completed' : 'Active'
+          })
+        } catch (error) {
+          console.error(`Error fetching investment for project ${id}:`, error)
+        }
+      }
+      
+      return investments
     } catch (error) {
       console.error("Error fetching user investments:", error)
       return []
@@ -376,6 +415,29 @@ export class InfinifundContract {
       return requests
     } catch (error) {
       console.error("Error fetching citizenship requests:", error)
+      return []
+    }
+  }
+
+  async getCitizenshipApplication(address: string): Promise<any> {
+    try {
+      const contract = this.getReadContract()
+      const application = await contract.citizenshipRequests(address)
+      return application
+    } catch (error) {
+      console.error("Error fetching citizenship application:", error)
+      throw error
+    }
+  }
+
+  async getUserApplications(address: string): Promise<any[]> {
+    try {
+      const contract = this.getReadContract()
+      // This would need to be implemented based on your contract's structure
+      // For now, return empty array
+      return []
+    } catch (error) {
+      console.error("Error fetching user applications:", error)
       return []
     }
   }

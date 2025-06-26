@@ -456,6 +456,70 @@ export function useInfinifundContract() {
   const getUserInvestments = (userAddress: string) => infinifundContract.getUserInvestments(userAddress)
   const getScreeningVotes = (projectId: number) => infinifundContract.getScreeningVotes(projectId)
 
+  // Additional read functions for user profile
+  const isCitizen = async (userAddress: string): Promise<boolean> => {
+    try {
+      return await infinifundContract.isCitizen(userAddress)
+    } catch (error) {
+      console.error("Error checking citizen status:", error)
+      return false
+    }
+  }
+
+  const isAdmin = async (userAddress: string): Promise<boolean> => {
+    try {
+      return await infinifundContract.isAdmin(userAddress)
+    } catch (error) {
+      console.error("Error checking admin status:", error)
+      return false
+    }
+  }
+
+  const getCitizenshipApplication = async (userAddress: string) => {
+    try {
+      return await infinifundContract.getCitizenshipApplication(userAddress)
+    } catch (error) {
+      console.error("Error getting citizenship application:", error)
+      throw error
+    }
+  }
+
+  const getUserApplications = async (userAddress: string) => {
+    try {
+      return await infinifundContract.getUserApplications(userAddress)
+    } catch (error) {
+      console.error("Error getting user applications:", error)
+      return []
+    }
+  }
+
+  const applyCitizenship = async () => {
+    try {
+      if (!isConnected) {
+        toast.error("Please connect your wallet first")
+        return false
+      }
+
+      toast.info("Submitting citizenship application...")
+
+      writeContract({
+        address: CONTRACT_ADDRESS as `0x${string}`,
+        abi: contractABI,
+        functionName: 'requestCitizenship',
+        args: [],
+        account: address!,
+        chain: flowTestnet,
+      })
+
+      return true
+    } catch (error: any) {
+      console.error("Error applying for citizenship:", error)
+      const errorMessage = error?.message || error?.cause?.message || "Failed to apply for citizenship"
+      toast.error(errorMessage)
+      throw error
+    }
+  }
+
   return {
     // State
     ...state,
@@ -472,6 +536,7 @@ export function useInfinifundContract() {
     finalizeScreening,
     fundProject,
     voteForScreening,
+    applyCitizenship,
     
     // Read functions
     getAllProjects,
@@ -480,6 +545,10 @@ export function useInfinifundContract() {
     getUserProjects,
     getUserInvestments,
     getScreeningVotes,
+    isCitizen,
+    isAdmin,
+    getCitizenshipApplication,
+    getUserApplications,
     
     // Contract data
     projectCount: projectCountData ? Number(projectCountData) : 0,
