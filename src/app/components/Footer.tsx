@@ -32,7 +32,6 @@ const footerSections = {
 }
 
 const socialLinks = [
-  { icon: Instagram, href: "#" },
   { icon: Twitter, href: "#" },
   { icon: Linkedin, href: "#" },
   { icon: Github, href: "https://github.com/your-username/Infinifund" },
@@ -68,22 +67,9 @@ export default function Footer() {
             <Bitcoin className="w-8 h-8" />
             <span className="text-xl font-bold">InfiniFund</span>
           </Link>
-          <p className="text-gray-400 mb-6">
+          <p className="text-gray-400">
           Infinifund is a revolutionary blockchain-based project funding platform powering breakthrough research in longevity, biotech, and frontier science in Infinita City.
           </p>
-          <div className="flex gap-4">
-            {socialLinks.map((social, index) => (
-              <motion.a
-                key={index}
-                href={social.href}
-                className="p-2 rounded-full bg-gray-800 hover:bg-gray-700 transition-colors"
-                whileHover={{ scale: 1.1, rotate: 10 }}
-                whileTap={{ scale: 0.9 }}
-              >
-                <social.icon className="w-5 h-5" />
-              </motion.a>
-            ))}
-          </div>
         </motion.div>
 
         {/* Footer Sections */}
@@ -101,6 +87,30 @@ export default function Footer() {
             </ul>
           </motion.div>
         ))}
+
+        {/* Social Links Section */}
+        <motion.div variants={itemVariants} className="space-y-4">
+          <h3 className="text-lg font-semibold">Follow Us</h3>
+          <div className="flex flex-col gap-3">
+            {socialLinks.map((social, index) => (
+              <motion.a
+                key={index}
+                href={social.href}
+                className="flex items-center gap-3 p-2 rounded-lg bg-gray-800/50 hover:bg-gray-700 transition-colors group"
+                whileHover={{ scale: 1.02, x: 5 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <social.icon className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                <span className="text-gray-400 group-hover:text-white transition-colors">
+                  {social.icon === Instagram ? 'Instagram' : 
+                   social.icon === Twitter ? 'Twitter' : 
+                   social.icon === Linkedin ? 'LinkedIn' : 
+                   social.icon === Github ? 'GitHub' : 'Social'}
+                </span>
+              </motion.a>
+            ))}
+          </div>
+        </motion.div>
       </motion.div>
 
       {/* Copyright */}
