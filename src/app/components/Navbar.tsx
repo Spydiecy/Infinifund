@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation"
 import Image from "next/image"
 import logo from "./logo.jpg"
 import { ConnectButton } from '@rainbow-me/rainbowkit'
-import { useAccount, useDisconnect, useSwitchChain } from 'wagmi'
+import { useAccount, useDisconnect } from 'wagmi'
 import { flowTestnet } from '@/lib/rainbowkit-config'
 
 interface NavItem {
@@ -86,7 +86,6 @@ export default function Navbar() {
   // Use RainbowKit hooks
   const { address, isConnected } = useAccount()
   const { disconnect } = useDisconnect()
-  const { switchChain } = useSwitchChain()
 
   useEffect(() => {
     const handleScroll = () => {
@@ -115,15 +114,6 @@ export default function Navbar() {
     }
   }
 
-  const handleSwitchToFlowEvm = async () => {
-    try {
-      switchChain({ chainId: flowTestnet.id })
-      setIsChainDropdownOpen(false)
-    } catch (error) {
-      console.error("Failed to switch to Flow EVM:", error)
-    }
-  }
-
   const handleSearch = (query: string) => {
     setSearchQuery(query)
     const mockResults = ["Popular NFT #1", "Top Collection", "Trending Artist"].filter((item) =>
@@ -137,12 +127,6 @@ export default function Navbar() {
     localStorage.setItem("selectedChain", JSON.stringify(chain))
     localStorage.setItem("CONTRACT_ADD", chain.contractAddress)
     setIsChainDropdownOpen(false)
-
-    try {
-      switchChain({ chainId: flowTestnet.id })
-    } catch (error) {
-      console.error("Error switching chain:", error)
-    }
   }
 
   return (
@@ -274,12 +258,6 @@ export default function Navbar() {
                         }}
                       >
                         <span>👤 Profile</span>
-                      </div>
-                      <div
-                        className="flex items-center gap-2 px-4 py-2 text-white hover:bg-white/10 transition-colors cursor-pointer"
-                        onClick={handleSwitchToFlowEvm}
-                      >
-                        <span>🔄 Switch to Flow EVM</span>
                       </div>
                       <div className="border-t border-white/10 my-1" />
                       <div

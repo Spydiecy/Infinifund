@@ -34,4 +34,5 @@ export const rainbowConfig = getDefaultConfig({
   transports: {
     [flowTestnet.id]: http('https://testnet.evm.nodes.onflow.org'),
   },
+  ssr: true, // Enable server-side rendering support
 })
