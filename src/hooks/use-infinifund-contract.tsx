@@ -165,7 +165,7 @@ export function useInfinifundContract() {
     }
   }
 
-  const voteScreening = async (projectId: number, approve: boolean) => {
+  const voteScreening = async (projectId: number, vote: boolean) => {
     try {
       if (!isConnected) {
         toast.error("Please connect your wallet first")
@@ -181,17 +181,188 @@ export function useInfinifundContract() {
         address: CONTRACT_ADDRESS as `0x${string}`,
         abi: contractABI,
         functionName: 'voteScreening',
-        args: [projectId, approve],
+        args: [projectId, vote],
         account: address!,
         chain: flowTestnet,
       })
 
-      toast.success(`Vote ${approve ? 'for' : 'against'} submitted!`)
+      toast.success(`Vote ${vote ? 'for' : 'against'} submitted!`)
       
       return true
     } catch (error: any) {
       console.error("Error voting on screening:", error)
       toast.error(error.message || "Failed to submit vote")
+      throw error
+    }
+  }
+
+  // Admin functions
+  const approveCitizenship = async (userAddress: string) => {
+    try {
+      if (!isConnected) {
+        toast.error("Please connect your wallet first")
+        return
+      }
+
+      if (!state.isAdmin) {
+        toast.error("Only admins can approve citizenship")
+        return
+      }
+
+      writeContract({
+        address: CONTRACT_ADDRESS as `0x${string}`,
+        abi: contractABI,
+        functionName: 'approveCitizenship',
+        args: [userAddress],
+        account: address!,
+        chain: flowTestnet,
+      })
+
+      toast.success("Citizenship approval transaction submitted!")
+      return true
+    } catch (error: any) {
+      console.error("Error approving citizenship:", error)
+      toast.error(error.message || "Failed to approve citizenship")
+      throw error
+    }
+  }
+
+  const rejectCitizenship = async (userAddress: string) => {
+    try {
+      if (!isConnected) {
+        toast.error("Please connect your wallet first")
+        return
+      }
+
+      if (!state.isAdmin) {
+        toast.error("Only admins can reject citizenship")
+        return
+      }
+
+      writeContract({
+        address: CONTRACT_ADDRESS as `0x${string}`,
+        abi: contractABI,
+        functionName: 'rejectCitizenship',
+        args: [userAddress],
+        account: address!,
+        chain: flowTestnet,
+      })
+
+      toast.success("Citizenship rejection transaction submitted!")
+      return true
+    } catch (error: any) {
+      console.error("Error rejecting citizenship:", error)
+      toast.error(error.message || "Failed to reject citizenship")
+      throw error
+    }
+  }
+
+  const revokeCitizenship = async (userAddress: string) => {
+    try {
+      if (!isConnected) {
+        toast.error("Please connect your wallet first")
+        return
+      }
+
+      if (!state.isAdmin) {
+        toast.error("Only admins can revoke citizenship")
+        return
+      }
+
+      writeContract({
+        address: CONTRACT_ADDRESS as `0x${string}`,
+        abi: contractABI,
+        functionName: 'revokeCitizenship',
+        args: [userAddress],
+        account: address!,
+        chain: flowTestnet,
+      })
+
+      toast.success("Citizenship revocation transaction submitted!")
+      return true
+    } catch (error: any) {
+      console.error("Error revoking citizenship:", error)
+      toast.error(error.message || "Failed to revoke citizenship")
+      throw error
+    }
+  }
+
+  const addAdmin = async (adminAddress: string) => {
+    try {
+      if (!isConnected) {
+        toast.error("Please connect your wallet first")
+        return
+      }
+
+      writeContract({
+        address: CONTRACT_ADDRESS as `0x${string}`,
+        abi: contractABI,
+        functionName: 'addAdmin',
+        args: [adminAddress],
+        account: address!,
+        chain: flowTestnet,
+      })
+
+      toast.success("Add admin transaction submitted!")
+      return true
+    } catch (error: any) {
+      console.error("Error adding admin:", error)
+      toast.error(error.message || "Failed to add admin")
+      throw error
+    }
+  }
+
+  const removeAdmin = async (adminAddress: string) => {
+    try {
+      if (!isConnected) {
+        toast.error("Please connect your wallet first")
+        return
+      }
+
+      writeContract({
+        address: CONTRACT_ADDRESS as `0x${string}`,
+        abi: contractABI,
+        functionName: 'removeAdmin',
+        args: [adminAddress],
+        account: address!,
+        chain: flowTestnet,
+      })
+
+      toast.success("Remove admin transaction submitted!")
+      return true
+    } catch (error: any) {
+      console.error("Error removing admin:", error)
+      toast.error(error.message || "Failed to remove admin")
+      throw error
+    }
+  }
+
+  const finalizeScreening = async (projectId: number) => {
+    try {
+      if (!isConnected) {
+        toast.error("Please connect your wallet first")
+        return
+      }
+
+      if (!state.isAdmin) {
+        toast.error("Only admins can finalize screening")
+        return
+      }
+
+      writeContract({
+        address: CONTRACT_ADDRESS as `0x${string}`,
+        abi: contractABI,
+        functionName: 'finalizeScreening',
+        args: [projectId],
+        account: address!,
+        chain: flowTestnet,
+      })
+
+      toast.success("Finalize screening transaction submitted!")
+      return true
+    } catch (error: any) {
+      console.error("Error finalizing screening:", error)
+      toast.error(error.message || "Failed to finalize screening")
       throw error
     }
   }
@@ -216,6 +387,12 @@ export function useInfinifundContract() {
     submitProject,
     fundProject,
     voteScreening,
+    approveCitizenship,
+    rejectCitizenship,
+    revokeCitizenship,
+    addAdmin,
+    removeAdmin,
+    finalizeScreening,
     
     // Read functions
     getAllProjects,
