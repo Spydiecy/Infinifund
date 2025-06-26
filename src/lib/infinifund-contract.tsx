@@ -143,6 +143,7 @@ export class InfinifundContract {
       projectData.banner,
       projectData.details,
       projectData.milestoneDescriptions,
+      
       projectData.fundingDuration,
     )
   }
