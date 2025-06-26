@@ -5,26 +5,26 @@ import { Bitcoin, Instagram, Linkedin, Twitter, Github } from "lucide-react"
 import Link from "next/link"
 
 const footerSections = {
-  marketplace: {
-    title: "Hackathons",
+  projects: {
+    title: "Projects",
     items: [
-      { name: "View Hacks", href: "/hackathons" },
-      { name: "Create Hacks", href: "/create-hack" },
-      { name: "Latest Hacks", href: "/hackathons/0" },
+      { name: "Browse Projects", href: "/projects" },
+      { name: "Submit Project", href: "/create-project" },
+      { name: "Top Projects", href: "/top-projects" },
     ],
   },
-  myAccount: {
-    title: "Builds",
+  community: {
+    title: "Community",
     items: [
-      { name: "My Builds", href: "/my-builds" },
-      { name: "Create Build", href: "/create-build" },
-      { name: "Submit Build", href: "/hackathons/0" },
+      { name: "My Projects", href: "/my-projects" },
+      { name: "Investors", href: "/investors" },
+      { name: "Apply Citizenship", href: "/citizenship" },
     ],
   },
-  resources: {
+  about: {
     title: "About",
     items: [
-      { name: "About", href: "/about" },
+      { name: "Infinita City", href: "/about" },
       { name: "Terms & Conditions", href: "/termsAndConditions" },
       { name: "User Profile", href: "/userProfile" },
     ],
@@ -35,7 +35,7 @@ const socialLinks = [
   { icon: Instagram, href: "#" },
   { icon: Twitter, href: "#" },
   { icon: Linkedin, href: "#" },
-  { icon: Github, href: "https://github.com/namanbansal102/InfiniFund" },
+  { icon: Github, href: "https://github.com/your-username/Infinifund" },
 ]
 
 export default function Footer() {
@@ -69,7 +69,7 @@ export default function Footer() {
             <span className="text-xl font-bold">InfiniFund</span>
           </Link>
           <p className="text-gray-400 mb-6">
-          NeurAKill is a revolutionary blockchain-based hackathon management platform built on the Flow chain
+          Infinifund is a revolutionary blockchain-based project funding platform powering breakthrough research in longevity, biotech, and frontier science in Infinita City.
           </p>
           <div className="flex gap-4">
             {socialLinks.map((social, index) => (
@@ -108,7 +108,7 @@ export default function Footer() {
         variants={itemVariants}
         className="max-w-7xl mx-auto mt-16 pt-8 border-t border-gray-800 text-center text-gray-400"
       >
-        <p>© 2025 InfiniFund. All rights reserved</p>
+        <p>© 2025 Infinifund. Advancing human longevity in Infinita City, Próspera. All rights reserved.</p>
       </motion.div>
     </footer>
   )

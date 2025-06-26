@@ -272,9 +272,9 @@ export default function AdminPage() {
   if (!isAdmin) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
-        <Card className="bg-gray-900/50 border-red-500/30 p-8 text-center">
-          <AlertTriangle className="h-16 w-16 text-red-400 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-red-400 mb-4">Access Denied</h2>
+        <Card className="bg-gray-900/50 border-blue-500/30 p-8 text-center">
+          <AlertTriangle className="h-16 w-16 text-blue-400 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-blue-400 mb-4">Access Denied</h2>
           <p className="text-gray-300 mb-4">You are not authorized to access the admin panel</p>
           <p className="text-sm text-gray-400">
             Connected: {userAddress.slice(0, 6)}...{userAddress.slice(-4)}
@@ -287,10 +287,10 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-black relative overflow-hidden">
       {/* Animated Background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-black to-purple-900/20" />
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-black to-blue-800/20" />
       <div className="absolute inset-0">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse delay-1000" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-400/10 rounded-full blur-3xl animate-pulse delay-1000" />
       </div>
 
       <div className="relative z-10 p-6">
@@ -299,14 +299,14 @@ export default function AdminPage() {
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-12">
             <div className="flex items-center justify-center gap-3 mb-4">
               <Shield className="h-8 w-8 text-blue-400" />
-              <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-400 via-white to-purple-400 bg-clip-text text-transparent">
+              <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-400 via-white to-blue-300 bg-clip-text text-transparent">
                 Admin Panel
               </h1>
-              <Crown className="h-8 w-8 text-purple-400" />
+              <Crown className="h-8 w-8 text-blue-400" />
             </div>
             <p className="text-xl text-blue-300 mb-2">Infinifund Platform Administration</p>
             <div className="flex items-center justify-center gap-4">
-              <Badge className="bg-green-500/20 text-green-300 border-green-500/30">
+              <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30">
                 {isMainAdmin ? "Main Administrator" : "Administrator"}
               </Badge>
               <span className="text-gray-400">
@@ -321,9 +321,9 @@ export default function AdminPage() {
             animate={{ opacity: 1, y: 0 }}
             className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"
           >
-            <Card className="bg-gray-900/50 border-yellow-500/30 backdrop-blur-sm">
+            <Card className="bg-gray-900/50 border-blue-500/30 backdrop-blur-sm">
               <CardContent className="p-4 text-center">
-                <Users className="h-8 w-8 text-yellow-400 mx-auto mb-2" />
+                <Users className="h-8 w-8 text-blue-400 mx-auto mb-2" />
                 <div className="text-2xl font-bold text-white">{pendingRequests.length}</div>
                 <div className="text-sm text-gray-300">Pending Citizenship</div>
               </CardContent>
@@ -337,9 +337,9 @@ export default function AdminPage() {
               </CardContent>
             </Card>
 
-            <Card className="bg-gray-900/50 border-purple-500/30 backdrop-blur-sm">
+            <Card className="bg-gray-900/50 border-blue-500/30 backdrop-blur-sm">
               <CardContent className="p-4 text-center">
-                <Shield className="h-8 w-8 text-purple-400 mx-auto mb-2" />
+                <Shield className="h-8 w-8 text-blue-400 mx-auto mb-2" />
                 <div className="text-2xl font-bold text-white">{isMainAdmin ? "Main" : "Sub"}</div>
                 <div className="text-sm text-gray-300">Admin Level</div>
               </CardContent>
@@ -360,10 +360,10 @@ export default function AdminPage() {
               {/* Citizenship Management */}
               <TabsContent value="citizenship" className="space-y-6">
                 {/* Pending Requests */}
-                <Card className="bg-gray-900/50 border-yellow-500/30 backdrop-blur-sm">
+                <Card className="bg-gray-900/50 border-blue-500/30 backdrop-blur-sm">
                   <CardHeader>
                     <CardTitle className="text-white flex items-center gap-2">
-                      <Clock className="h-5 w-5 text-yellow-400" />
+                      <Clock className="h-5 w-5 text-blue-400" />
                       Pending Citizenship Requests ({pendingRequests.length})
                     </CardTitle>
                     <CardDescription className="text-gray-300">
@@ -396,7 +396,7 @@ export default function AdminPage() {
                                 size="sm"
                                 onClick={() => handleApproveCitizenship(request.address)}
                                 disabled={approvingCitizen === request.address}
-                                className="bg-green-600 hover:bg-green-700"
+                                className="bg-blue-600 hover:bg-blue-700"
                               >
                                 {approvingCitizen === request.address ? (
                                   <Clock className="h-4 w-4 animate-spin" />
@@ -409,7 +409,7 @@ export default function AdminPage() {
                                 variant="outline"
                                 onClick={() => handleRejectCitizenship(request.address)}
                                 disabled={rejectingCitizen === request.address}
-                                className="border-red-500 text-red-400 hover:bg-red-500/10"
+                                className="border-gray-500 text-gray-400 hover:bg-gray-500/10"
                               >
                                 {rejectingCitizen === request.address ? (
                                   <Clock className="h-4 w-4 animate-spin" />
@@ -426,10 +426,10 @@ export default function AdminPage() {
                 </Card>
 
                 {/* Revoke Citizenship */}
-                <Card className="bg-gray-900/50 border-red-500/30 backdrop-blur-sm">
+                <Card className="bg-gray-900/50 border-blue-500/30 backdrop-blur-sm">
                   <CardHeader>
                     <CardTitle className="text-white flex items-center gap-2">
-                      <UserMinus className="h-5 w-5 text-red-400" />
+                      <UserMinus className="h-5 w-5 text-blue-400" />
                       Revoke Citizenship
                     </CardTitle>
                     <CardDescription className="text-gray-300">Remove citizenship from a user</CardDescription>
@@ -448,7 +448,7 @@ export default function AdminPage() {
                       <DialogTrigger asChild>
                         <Button
                           disabled={!citizenAddress || revokingCitizen === citizenAddress}
-                          className="bg-red-600 hover:bg-red-700 w-full"
+                          className="bg-blue-600 hover:bg-blue-700 w-full"
                         >
                           {revokingCitizen === citizenAddress ? (
                             <>
@@ -465,7 +465,7 @@ export default function AdminPage() {
                       </DialogTrigger>
                       <DialogContent className="bg-gray-900 border-gray-700">
                         <DialogHeader>
-                          <DialogTitle className="text-red-400">Confirm Revocation</DialogTitle>
+                          <DialogTitle className="text-blue-400">Confirm Revocation</DialogTitle>
                           <DialogDescription className="text-gray-300">
                             Are you sure you want to revoke citizenship for {citizenAddress}? This action cannot be
                             undone.
@@ -475,7 +475,7 @@ export default function AdminPage() {
                           <Button variant="outline" className="border-gray-600">
                             Cancel
                           </Button>
-                          <Button onClick={handleRevokeCitizenship} className="bg-red-600 hover:bg-red-700">
+                          <Button onClick={handleRevokeCitizenship} className="bg-blue-600 hover:bg-blue-700">
                             Confirm Revocation
                           </Button>
                         </div>
@@ -519,12 +519,12 @@ export default function AdminPage() {
                                 </div>
 
                                 <div className="grid grid-cols-3 gap-4 mb-4">
-                                  <div className="text-center p-2 bg-green-500/10 rounded border border-green-500/30">
-                                    <div className="text-green-400 font-semibold">Votes For</div>
+                                  <div className="text-center p-2 bg-blue-500/10 rounded border border-blue-500/30">
+                                    <div className="text-blue-400 font-semibold">Votes For</div>
                                     <div className="text-white text-lg">Loading...</div>
                                   </div>
-                                  <div className="text-center p-2 bg-red-500/10 rounded border border-red-500/30">
-                                    <div className="text-red-400 font-semibold">Votes Against</div>
+                                  <div className="text-center p-2 bg-gray-500/10 rounded border border-gray-500/30">
+                                    <div className="text-gray-400 font-semibold">Votes Against</div>
                                     <div className="text-white text-lg">Loading...</div>
                                   </div>
                                   <div className="text-center p-2 bg-blue-500/10 rounded border border-blue-500/30">
@@ -572,10 +572,10 @@ export default function AdminPage() {
                 </Alert>
 
                 {/* Add Admin */}
-                <Card className="bg-gray-900/50 border-green-500/30 backdrop-blur-sm">
+                <Card className="bg-gray-900/50 border-blue-500/30 backdrop-blur-sm">
                   <CardHeader>
                     <CardTitle className="text-white flex items-center gap-2">
-                      <UserPlus className="h-5 w-5 text-green-400" />
+                      <UserPlus className="h-5 w-5 text-blue-400" />
                       Add Administrator
                     </CardTitle>
                     <CardDescription className="text-gray-300">Grant admin privileges to a user</CardDescription>
@@ -593,7 +593,7 @@ export default function AdminPage() {
                     <Button
                       onClick={handleAddAdmin}
                       disabled={!adminAddress || addingAdmin}
-                      className="bg-green-600 hover:bg-green-700 w-full"
+                      className="bg-blue-600 hover:bg-blue-700 w-full"
                     >
                       {addingAdmin ? (
                         <>
@@ -611,10 +611,10 @@ export default function AdminPage() {
                 </Card>
 
                 {/* Remove Admin */}
-                <Card className="bg-gray-900/50 border-red-500/30 backdrop-blur-sm">
+                <Card className="bg-gray-900/50 border-blue-500/30 backdrop-blur-sm">
                   <CardHeader>
                     <CardTitle className="text-white flex items-center gap-2">
-                      <Trash2 className="h-5 w-5 text-red-400" />
+                      <Trash2 className="h-5 w-5 text-blue-400" />
                       Remove Administrator
                     </CardTitle>
                     <CardDescription className="text-gray-300">Remove admin privileges from a user</CardDescription>
@@ -633,7 +633,7 @@ export default function AdminPage() {
                       <DialogTrigger asChild>
                         <Button
                           disabled={!removeAdminAddress || removingAdmin === removeAdminAddress}
-                          className="bg-red-600 hover:bg-red-700 w-full"
+                          className="bg-blue-600 hover:bg-blue-700 w-full"
                         >
                           {removingAdmin === removeAdminAddress ? (
                             <>
@@ -650,7 +650,7 @@ export default function AdminPage() {
                       </DialogTrigger>
                       <DialogContent className="bg-gray-900 border-gray-700">
                         <DialogHeader>
-                          <DialogTitle className="text-red-400">Confirm Removal</DialogTitle>
+                          <DialogTitle className="text-blue-400">Confirm Removal</DialogTitle>
                           <DialogDescription className="text-gray-300">
                             Are you sure you want to remove admin privileges from {removeAdminAddress}?
                           </DialogDescription>
@@ -659,7 +659,7 @@ export default function AdminPage() {
                           <Button variant="outline" className="border-gray-600">
                             Cancel
                           </Button>
-                          <Button onClick={handleRemoveAdmin} className="bg-red-600 hover:bg-red-700">
+                          <Button onClick={handleRemoveAdmin} className="bg-blue-600 hover:bg-blue-700">
                             Confirm Removal
                           </Button>
                         </div>

@@ -1,5 +1,4 @@
 "use client";
-import Image from "next/image";
 import React from "react";
 import { WobbleCard } from "./wobble-card";
 
@@ -12,44 +11,36 @@ export function WobbleCardDemo() {
       >
         <div className="max-w-xs">
           <h2 className="text-left text-balance text-base md:text-xl lg:text-3xl font-semibold tracking-[-0.015em] text-white">
-          Decentralized Hackathon Hub Driven By AI
+          Decentralized Project Funding for Longevity Science
           </h2>
           <p className="mt-4 text-left  text-base/6 text-neutral-200">
-          A blockchain-powered platform where users can host, submit, and upvote hackathon projects transparently.
+          A blockchain-powered platform where researchers submit breakthrough projects in longevity, biotech, and AI for transparent community funding.
           </p>
         </div>
-        <Image
-          src="/linear.webp"
-          width={500}
-          height={500}
-          alt="linear demo image"
-          className="absolute -right-4 lg:-right-[40%] grayscale filter -bottom-10 object-contain rounded-2xl"
-        />
+        <div className="absolute -right-4 lg:-right-[40%] -bottom-10 w-32 h-32 bg-gradient-to-br from-purple-500/20 to-blue-500/20 rounded-2xl backdrop-blur-sm border border-white/10">
+          <div className="w-full h-full rounded-2xl bg-gradient-to-r from-blue-400/30 via-purple-500/30 to-pink-500/30 animate-pulse"></div>
+        </div>
       </WobbleCard>
       <WobbleCard containerClassName="col-span-1 min-h-[300px]">
         <h2 className="max-w-80  text-left text-balance text-base md:text-xl lg:text-3xl font-semibold tracking-[-0.015em] text-white">
-        Transparent & Fair Hackathons
+        Transparent & Milestone-Based Funding
         </h2>
         <p className="mt-4 max-w-[26rem] text-left  text-base/6 text-neutral-200">
-        A secure, open-source platform where judges and users upvote projects, with prizes sent directly to winners’ wallets.
+        Citizens vote on projects, and funds are released based on completed research milestones, ensuring accountability and progress tracking.
         </p>
       </WobbleCard>
       <WobbleCard containerClassName="col-span-1 lg:col-span-3 bg-blue-900 min-h-[500px] lg:min-h-[600px] xl:min-h-[300px]">
         <div className="max-w-sm">
           <h2 className="max-w-sm md:max-w-lg  text-left text-balance text-base md:text-xl lg:text-3xl font-semibold tracking-[-0.015em] text-white">
-          Open-Source Nature of InfiniFund Based On Web3 Projects
+          Advancing Human Longevity in Infinita City
           </h2>
           <p className="mt-4 max-w-[26rem] text-left  text-base/6 text-neutral-200">
-          InfiniFund is designed as an open-source hackathon management platform, allowing complete transparency, community collaboration, and decentralized governance.
+          Infinifund powers "The City That Never Dies" - supporting revolutionary research in biotechnology, cybernetics, computational science, and human enhancement technologies.
           </p>
         </div>
-        <Image
-          src="/linear.webp"
-          width={500}
-          height={500}
-          alt="linear demo image"
-          className="absolute -right-10 md:-right-[40%] lg:-right-[20%] -bottom-10 object-contain rounded-2xl"
-        />
+        <div className="absolute -right-10 md:-right-[40%] lg:-right-[20%] -bottom-10 w-40 h-40 bg-gradient-to-br from-cyan-500/20 to-blue-500/20 rounded-2xl backdrop-blur-sm border border-white/10">
+          <div className="w-full h-full rounded-2xl bg-gradient-to-r from-cyan-400/30 via-blue-500/30 to-indigo-500/30 animate-pulse delay-500"></div>
+        </div>
       </WobbleCard>
     </div>
   );

@@ -7,9 +7,9 @@ export function InfiniteMovingCardsDemo() {
   return (
     <div className="h-[30rem] rounded-md flex flex-col antialiased bg-white dark:bg-black dark:bg-grid-white/[0.05] items-center justify-center relative overflow-hidden">
       <br />
-      <center className="font-bold text-white text-5xl p-3">Get Latest <span className="text-blue-600">
+      <center className="font-bold text-white text-5xl p-3">Latest <span className="text-blue-600">
 
-      Updates
+      Research
       </span>
       </center>
       <InfiniteMovingCards
@@ -24,33 +24,33 @@ export function InfiniteMovingCardsDemo() {
 const testimonials = [
   {
     quote:
-      "InfiniFund brings transparency and fairness to hackathons. Its open-source nature ensures that anyone can contribute, verify, and improve the system.",
-    name: "Satoshi Nakamoto",
-    title: "Blockchain Pioneer",
+      "Infinifund represents the future of decentralized science funding. By connecting breakthrough longevity research with transparent blockchain governance, it accelerates humanity's quest to defeat aging.",
+    name: "Dr. David Sinclair",
+    title: "Longevity Researcher, Harvard Medical School",
   },
   {
     quote:
-      "Decentralization is the future, and InfiniFund embodies this vision. With smart contracts and AI-driven evaluations, it creates a trustless and efficient ecosystem.",
-    name: "Vitalik Buterin",
-    title: "Ethereum Co-Founder",
+      "The marriage of decentralized governance and longevity science funding in Infinita City creates unprecedented opportunities for breakthrough research that traditional institutions wouldn't dare fund.",
+    name: "Aubrey de Grey",
+    title: "Chief Science Officer, LEV Foundation",
   },
   {
     quote:
-      "An open-source hackathon platform like InfiniFund fosters innovation by allowing developers to build upon and refine its features.",
-    name: "Linus Torvalds",
-    title: "Creator of Linux",
+      "Infinifund's milestone-based funding ensures that every research dollar is accountable. This transparency is crucial for advancing human enhancement and biotechnology in Próspera.",
+    name: "Dr. Balaji Srinivasan",
+    title: "Network State Theorist",
   },
   {
     quote:
-      "With open-source transparency, InfiniFund eliminates biases in project selection, ensuring fair competition through AI-powered ranking and ETH-based voting.",
-    name: "Nick Szabo",
-    title: "Smart Contracts Pioneer",
+      "By enabling citizens to directly fund longevity research, Infinifund democratizes scientific progress. Infinita City becomes a true laboratory for human advancement.",
+    name: "Dr. José Cordeiro",
+    title: "Futurist & Longevity Advocate",
   },
   {
     quote:
-      "InfiniFund is redefining how hackathons operate. By leveraging blockchain and AI, it guarantees fairness, transparency, and automated prize distribution.",
-    name: "Andreas M. Antonopoulos",
-    title: "Bitcoin Advocate & Author",
+      "Infinifund bridges the gap between cutting-edge science and decentralized funding. This model will accelerate breakthroughs in AI, biotechnology, and human enhancement.",
+    name: "Dr. Ben Goertzel",
+    title: "AI Researcher & SingularityNET Founder",
   },
 ];
 
