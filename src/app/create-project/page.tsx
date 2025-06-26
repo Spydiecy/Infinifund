@@ -13,11 +13,13 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Checkbox } from "@/components/ui/checkbox"
 import { FileUpload } from "@/components/file-upload"
 import { MilestoneInput } from "@/components/milestone-input"
+import { ConnectButton } from '@rainbow-me/rainbowkit'
 import type { ProjectData } from "@/lib/infinifund-contract"
 import { PinataSDK } from "pinata"
 import { toast } from "sonner"
 import { ethers } from "ethers"
-import {  infinifundContract} from "@/lib/infinifund-contract"
+import { infinifundContract } from "@/lib/infinifund-contract"
+import { useInfinifundContract } from "@/hooks/use-infinifund-contract"
 import { reviewProjectWithAI } from "@/lib/gemini-ai"
 
 const pinata = new PinataSDK({
@@ -88,6 +90,7 @@ const initialFormData: FormData = {
 // `
 
 export default function CreateProject() {
+  const { submitProject, isConnected, userAddress, isCitizen, loading } = useInfinifundContract()
   const [iconFile, setIconFile] = useState<File | null>(null)
   const [bannerFile, setBannerFile] = useState<File | null>(null)
   const [milestones, setMilestones] = useState<Milestone[]>([{ id: "1", description: "" }])
@@ -97,86 +100,8 @@ export default function CreateProject() {
   const [showReviewModal, setShowReviewModal] = useState(false)
   const [aiReview, setAiReview] = useState<AIReviewResult | null>(null)
   const [acceptedTerms, setAcceptedTerms] = useState(false)
-  const [userAddress, setUserAddress] = useState<string>("")
-  const [isConnected, setIsConnected] = useState(false)
-  const [isCitizen, setIsCitizen] = useState(false)
 
-  useEffect(() => {
-    const handleAccountsChanged = (accounts: string[]) => {
-      if (accounts.length > 0) {
-        setUserAddress(accounts[0])
-        setIsConnected(true)
-        checkCitizenshipStatus(accounts[0])
-      } else {
-        setUserAddress("")
-        setIsConnected(false)
-        setIsCitizen(false)
-      }
-    }
-
-    const checkCitizenshipStatus = async (address: string) => {
-      try {
-        const citizenStatus = await infinifundContract.isCitizen(address)
-        setIsCitizen(citizenStatus)
-      } catch (error) {
-        console.error("Error checking citizenship:", error)
-      }
-    }
-
-    if (typeof window !== "undefined" && window.ethereum) {
-      window.ethereum.on("accountsChanged", handleAccountsChanged)
-
-      // Check if already connected
-      window.ethereum
-        .request({ method: "eth_accounts" })
-        .then((accounts: string[]) => {
-          if (accounts.length > 0) {
-            handleAccountsChanged(accounts)
-          }
-        })
-        .catch(console.error)
-
-      return () => {
-        window.ethereum.removeListener("accountsChanged", handleAccountsChanged)
-      }
-    }
-  }, [])
-
-  const checkConnection = async () => {
-    if (typeof window !== "undefined" && window.ethereum) {
-      try {
-        const accounts = await window.ethereum.request({ method: "eth_accounts" })
-        if (accounts.length > 0) {
-          setUserAddress(accounts[0])
-          setIsConnected(true)
-          // Check citizenship status
-          if (infinifundContract) {
-            const citizenStatus = await infinifundContract.isCitizen(accounts[0])
-            setIsCitizen(citizenStatus)
-          }
-        }
-      } catch (error) {
-        console.error("Error checking connection:", error)
-      }
-    }
-  }
-
-  const connectWallet = async () => {
-    try {
-      const address = await infinifundContract.connect()
-      setUserAddress(address)
-      setIsConnected(true)
-
-      const citizenStatus = await infinifundContract.isCitizen(address)
-      setIsCitizen(citizenStatus)
-
-      if (!citizenStatus) {
-        toast.warning("You need to be a citizen to submit projects. Please request citizenship first.")
-      }
-    } catch (error: any) {
-      toast.error("Failed to connect wallet: " + error.message)
-    }
-  }
+  // Remove old wallet connection logic - now handled by the hook
 
   const handleAddMilestone = () => {
     const newMilestone: Milestone = {
@@ -287,15 +212,31 @@ export default function CreateProject() {
   // }
 
   const handleFinalSubmit = async () => {
-    // if (!aiReview?.approved) {
-    //   toast.error("Project must be approved by AI review first")
-    //   return
-    // }
+    // Validation checks
+    if (!isConnected) {
+      toast.error("Please connect your wallet first")
+      return
+    }
 
-    // if (!isConnected) {
-    //   toast.error("Please connect your wallet first")
-    //   return
-    // }
+    if (loading) {
+      toast.error("Loading wallet information, please wait...")
+      return
+    }
+
+    if (!isCitizen) {
+      toast.error("Only Infinita City citizens can submit projects. Please apply for citizenship first.")
+      return
+    }
+
+    if (!formData.name.trim() || !formData.details.trim()) {
+      toast.error("Please fill in all required fields")
+      return
+    }
+
+    if (milestones.some((m) => !m.description.trim())) {
+      toast.error("Please fill in all milestone descriptions")
+      return
+    }
 
     setIsSubmitting(true)
 
@@ -308,11 +249,13 @@ export default function CreateProject() {
       if (iconFile) {
         const iconUpload = await pinata.upload.file(iconFile)
         iconHash = `ipfs://${iconUpload.cid}`
+        toast.info("✅ Icon uploaded to IPFS")
       }
 
       if (bannerFile) {
         const bannerUpload = await pinata.upload.file(bannerFile)
         bannerHash = `ipfs://${bannerUpload.cid}`
+        toast.info("✅ Banner uploaded to IPFS")
       }
 
       const projectData: any = {
@@ -321,42 +264,32 @@ export default function CreateProject() {
         banner: bannerHash,
         details: formData.details,
         milestoneDescriptions: milestones.map((m) => m.description),
-        fundingDuration: formData.fundingDuration * 24 * 60 * 60,
+        fundingDuration: formData.fundingDuration * 24 * 60 * 60, // Convert days to seconds
       }
-      console.log("My Project data is::::::::::::::::",projectData);
       
+      console.log("Project data prepared:", projectData)
+      toast.info("🚀 Submitting to blockchain...")
 
-
-      // Real contract interaction
-      const tx = await infinifundContract.submitProject(projectData)
-
-      toast.info("⏳ Transaction submitted. Waiting for confirmation...")
-
-      const receipt = await tx.wait()
-
-      // Get project ID from transaction logs
-      const projectSubmittedEvent = receipt.logs.find(
-        (log: any) => log.topics[0] === ethers.id("ProjectSubmitted(uint256,address)"),
-      )
-
-      let projectId:any = "Unknown"
-      if (projectSubmittedEvent) {
-        projectId = ethers.toNumber(projectSubmittedEvent.topics[1])
+      // Submit to blockchain using wagmi hook
+      const success = await submitProject(projectData)
+      
+      if (success) {
+        toast.success("🎉 Project submitted successfully!")
+        
+        // Reset form on successful submission
+        setFormData(initialFormData)
+        setIconFile(null)
+        setBannerFile(null)
+        setMilestones([{ id: "1", description: "" }])
+        setShowReviewModal(false)
+        setAiReview(null)
+        setAcceptedTerms(false)
+      } else {
+        toast.error("Failed to submit project. Please try again.")
       }
-
-      toast.success(`🎉 Project submitted successfully! Project ID: ${projectId}`)
-
-      // Reset form
-      setFormData(initialFormData)
-      setIconFile(null)
-      setBannerFile(null)
-      setMilestones([{ id: "1", description: "" }])
-      setShowReviewModal(false)
-      setAiReview(null)
-      setAcceptedTerms(false)
     } catch (error: any) {
       console.error("Error submitting project:", error)
-      toast.error(error.message || "Failed to submit project")
+      toast.error(error.message || "Failed to submit project. Please try again.")
     } finally {
       setIsSubmitting(false)
     }
@@ -400,29 +333,55 @@ export default function CreateProject() {
                     />
                     <span className="text-white font-medium">
                       {isConnected
-                        ? `Connected: ${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`
+                        ? `Connected: ${userAddress?.slice(0, 6)}...${userAddress?.slice(-4)}`
                         : "Not Connected"}
                     </span>
                     {isConnected && (
-                      <span className="px-3 py-1 rounded-full text-xs bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                        {isCitizen ? "✓ Infinita Citizen" : "Pending Citizenship"}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className={`px-3 py-1 rounded-full text-xs border ${
+                          isCitizen 
+                            ? "bg-green-500/20 text-green-300 border-green-500/30" 
+                            : "bg-yellow-500/20 text-yellow-300 border-yellow-500/30"
+                        }`}>
+                          {isCitizen ? "✓ Infinita Citizen" : "⏳ Pending Citizenship"}
+                        </span>
+                        {!isCitizen && (
+                          <Button
+                            onClick={() => toast.info("Citizenship application coming soon!")}
+                            size="sm"
+                            className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1"
+                          >
+                            Apply for Citizenship
+                          </Button>
+                        )}
+                      </div>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 text-blue-300">
-                    <Sparkles className="h-4 w-4" />
-                    <span className="text-sm">Próspera, Roatán Hub</span>
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2 text-blue-300">
+                      <Sparkles className="h-4 w-4" />
+                      <span className="text-sm">Próspera, Roatán Hub</span>
+                    </div>
+                    {!isConnected && (
+                      <ConnectButton />
+                    )}
                   </div>
-                  {!isConnected && (
-                    <Button
-                      onClick={connectWallet}
-                      variant="outline"
-                      className="bg-white/10 border-white/20 text-white"
-                    >
-                      Connect Wallet
-                    </Button>
-                  )}
                 </div>
+                
+                {/* Citizenship requirement notice */}
+                {isConnected && !isCitizen && (
+                  <div className="mt-4 p-4 bg-yellow-900/30 border border-yellow-500/30 rounded-lg">
+                    <div className="flex items-start gap-2">
+                      <div className="text-yellow-400 mt-0.5">⚠️</div>
+                      <div>
+                        <p className="text-yellow-200 font-medium">Citizenship Required</p>
+                        <p className="text-yellow-300/80 text-sm">
+                          Only verified Infinita City citizens can submit projects. Complete the citizenship application to unlock project submission.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </motion.div>
@@ -540,7 +499,7 @@ export default function CreateProject() {
                   <Checkbox
                     id="terms"
                     checked={acceptedTerms}
-                    onCheckedChange={setAcceptedTerms}
+                    onCheckedChange={(checked) => setAcceptedTerms(checked === true)}
                     className="border-gray-500 data-[state=checked]:bg-blue-500"
                   />
                   <div className="text-sm text-gray-300">
@@ -594,8 +553,8 @@ export default function CreateProject() {
       <AnimatePresence>
         {showReviewModal && aiReview && (
           <Dialog open={showReviewModal} onOpenChange={setShowReviewModal}>
-            <DialogContent className="bg-gray-900 border-gray-700 text-white max-w-2xl">
-              <DialogHeader>
+            <DialogContent className="bg-gray-900 border-gray-700 text-white max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+              <DialogHeader className="flex-shrink-0 pb-4 border-b border-gray-700">
                 <DialogTitle className="flex items-center gap-3 text-2xl">
                   {aiReview.approved ? (
                     <>
@@ -618,7 +577,7 @@ export default function CreateProject() {
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="space-y-6">
+              <div className="flex-1 overflow-y-auto space-y-6 py-4 pr-2 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
                 {/* Score */}
                 <div className="text-center">
                   <div className="text-4xl font-bold text-blue-400 mb-2">{aiReview.score}/100</div>
@@ -647,33 +606,41 @@ export default function CreateProject() {
                 )}
 
                 {/* Action Buttons */}
-                <div className="flex gap-4 justify-center">
-                  {true ? (
-                    <Button
-                      onClick={handleFinalSubmit}
-                      disabled={isSubmitting}
-                      className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white px-6 py-2"
-                    >
-                      {isSubmitting ? (
-                        <>
-                          <Rocket className="h-4 w-4 mr-2 animate-bounce" />
-                          Submitting to Blockchain...
-                        </>
-                      ) : (
-                        <>
-                          <Rocket className="h-4 w-4 mr-2" />
-                          Submit to Infinita City
-                        </>
-                      )}
-                    </Button>
-                  ) : (
-                    <Button
-                      onClick={() => setShowReviewModal(false)}
-                      className="bg-gray-700 hover:bg-gray-600 text-white px-6 py-2"
-                    >
-                      Improve Project
-                    </Button>
-                  )}
+                <div className="flex gap-4 justify-center pt-4">
+                  <Button
+                    onClick={handleFinalSubmit}
+                    disabled={isSubmitting || !isConnected || !isCitizen}
+                    className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white px-6 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Rocket className="h-4 w-4 mr-2 animate-bounce" />
+                        Submitting to Blockchain...
+                      </>
+                    ) : !isConnected ? (
+                      <>
+                        <Rocket className="h-4 w-4 mr-2" />
+                        Connect Wallet First
+                      </>
+                    ) : !isCitizen ? (
+                      <>
+                        <Rocket className="h-4 w-4 mr-2" />
+                        Citizenship Required
+                      </>
+                    ) : (
+                      <>
+                        <Rocket className="h-4 w-4 mr-2" />
+                        Submit to Infinita City
+                      </>
+                    )}
+                  </Button>
+                  
+                  <Button
+                    onClick={() => setShowReviewModal(false)}
+                    className="bg-gray-700 hover:bg-gray-600 text-white px-6 py-2"
+                  >
+                    Close Review
+                  </Button>
                 </div>
               </div>
             </DialogContent>

@@ -1,8 +1,13 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { infinifundContract } from "@/lib/infinifund-contract"
+import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi"
+import { infinifundContract, type ProjectData, type ProjectView, type ProjectDetails, type Project } from "@/lib/infinifund-contract"
 import { toast } from "sonner"
+import { flowTestnet } from "@/lib/rainbowkit-config"
+import contractABI from "@/lib/abi.json"
+
+const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0xbc29335737795E7E6839882D1aF663e21Db0E736"
 
 export interface ContractState {
   isConnected: boolean
@@ -13,6 +18,12 @@ export interface ContractState {
 }
 
 export function useInfinifundContract() {
+  const { address, isConnected } = useAccount()
+  const { writeContract, data: hash, isPending: isWritePending, error: writeError } = useWriteContract()
+  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
+    hash,
+  })
+  
   const [state, setState] = useState<ContractState>({
     isConnected: false,
     userAddress: "",
@@ -21,190 +32,210 @@ export function useInfinifundContract() {
     loading: true,
   })
 
+  // Check user status when wallet connects
   useEffect(() => {
-    checkConnection()
-  }, [])
-
-  const checkConnection = async () => {
-    try {
-      if (typeof window !== "undefined" && window.ethereum) {
-        const accounts = await window.ethereum.request({ method: "eth_accounts" })
-        if (accounts.length > 0) {
-          const address = accounts[0]
-          const [citizenStatus, adminStatus] = await Promise.all([
-            infinifundContract.isCitizen(address),
-            infinifundContract.isAdmin(address),
-          ])
-
-          setState({
-            isConnected: true,
-            userAddress: address,
-            isCitizen: citizenStatus,
-            isAdmin: adminStatus,
-            loading: false,
-          })
-        } else {
-          setState((prev) => ({ ...prev, loading: false }))
-        }
-      } else {
-        setState((prev) => ({ ...prev, loading: false }))
-      }
-    } catch (error) {
-      console.error("Error checking connection:", error)
-      setState((prev) => ({ ...prev, loading: false }))
+    if (isConnected && address) {
+      checkUserStatus(address)
+    } else {
+      setState(prev => ({
+        ...prev,
+        isConnected: false,
+        userAddress: "",
+        isCitizen: false,
+        isAdmin: false,
+        loading: false,
+      }))
     }
-  }
+  }, [isConnected, address])
 
-  const connect = async () => {
+  const checkUserStatus = async (userAddress: string) => {
     try {
-      const address = await infinifundContract.connect()
-      const [citizenStatus, adminStatus] = await Promise.all([
-        infinifundContract.isCitizen(address),
-        infinifundContract.isAdmin(address),
+      setState(prev => ({ ...prev, loading: true }))
+      
+      const [isCitizen, isAdmin] = await Promise.all([
+        infinifundContract.isCitizen(userAddress),
+        infinifundContract.isAdmin(userAddress),
       ])
 
       setState({
         isConnected: true,
-        userAddress: address,
-        isCitizen: citizenStatus,
-        isAdmin: adminStatus,
+        userAddress,
+        isCitizen,
+        isAdmin,
         loading: false,
       })
-
-      toast.success("Wallet connected successfully!")
-      return address
-    } catch (error: any) {
-      toast.error("Failed to connect wallet: " + error.message)
-      throw error
+    } catch (error) {
+      console.error("Error checking user status:", error)
+      setState(prev => ({ ...prev, loading: false }))
     }
   }
 
-  const disconnect = () => {
-    setState({
-      isConnected: false,
-      userAddress: "",
-      isCitizen: false,
-      isAdmin: false,
-      loading: false,
-    })
-  }
-
-  // Contract interaction methods
+  // Contract interaction functions
   const requestCitizenship = async () => {
     try {
-      const tx = await infinifundContract.requestCitizenship()
-      await tx.wait()
+      if (!isConnected) {
+        toast.error("Please connect your wallet first")
+        return
+      }
+
+      writeContract({
+        address: CONTRACT_ADDRESS as `0x${string}`,
+        abi: contractABI,
+        functionName: 'requestCitizenship',
+        account: address!,
+        chain: flowTestnet,
+      })
+
       toast.success("Citizenship request submitted!")
-      return tx
+      
+      return true
     } catch (error: any) {
-      toast.error("Failed to request citizenship: " + error.message)
+      console.error("Error requesting citizenship:", error)
+      toast.error(error.message || "Failed to request citizenship")
       throw error
     }
   }
 
-  const submitProject = async (projectData:any) => {
+  const submitProject = async (projectData: ProjectData): Promise<boolean> => {
     try {
-      const tx = await infinifundContract.submitProject(
-        projectData.name,
-        projectData.icon,
-        projectData.banner,
-        projectData.details,
-        projectData.milestones,
-        projectData.fundingDuration,
-      )
-      await tx.wait()
-      toast.success("Project submitted successfully!")
-      return tx
-    } catch (error: any) {
-      toast.error("Failed to submit project: " + error.message)
-      throw error
-    }
-  }
+      if (!isConnected) {
+        toast.error("Please connect your wallet first")
+        return false
+      }
 
-  const voteScreening = async (projectId: number, approve: boolean) => {
-    try {
-      const tx = await infinifundContract.voteScreening(projectId, approve)
-      await tx.wait()
-      toast.success(`Vote ${approve ? "approved" : "rejected"} successfully!`)
-      return tx
+      if (!state.isCitizen) {
+        toast.error("Only citizens can submit projects")
+        return false
+      }
+
+      console.log("Submitting project with data:", projectData)
+      
+      // Submit transaction
+      writeContract({
+        address: CONTRACT_ADDRESS as `0x${string}`,
+        abi: contractABI,
+        functionName: 'submitProject',
+        args: [
+          projectData.name,
+          projectData.icon,
+          projectData.banner,
+          projectData.details,
+          projectData.milestoneDescriptions,
+          projectData.fundingDuration,
+        ],
+        account: address!,
+        chain: flowTestnet,
+      })
+
+      console.log("Transaction submitted")
+      toast.info("Transaction submitted! Waiting for confirmation...")
+      
+      return true
     } catch (error: any) {
-      toast.error("Failed to vote: " + error.message)
+      console.error("Error submitting project:", error)
+      toast.error(error.message || "Failed to submit project")
       throw error
     }
   }
 
   const fundProject = async (projectId: number, amount: string) => {
     try {
-      const tx = await infinifundContract.fundProject(projectId, amount)
-      await tx.wait()
+      if (!isConnected) {
+        toast.error("Please connect your wallet first")
+        return
+      }
+
+      writeContract({
+        address: CONTRACT_ADDRESS as `0x${string}`,
+        abi: contractABI,
+        functionName: 'fundProject',
+        args: [projectId],
+        value: BigInt(amount), // Assuming amount is in wei
+        account: address!,
+        chain: flowTestnet,
+      })
+
       toast.success("Project funded successfully!")
-      return tx
+      
+      return true
     } catch (error: any) {
-      toast.error("Failed to fund project: " + error.message)
+      console.error("Error funding project:", error)
+      toast.error(error.message || "Failed to fund project")
       throw error
     }
   }
 
-  const finalizeScreening = async (projectId: number) => {
+  const voteScreening = async (projectId: number, approve: boolean) => {
     try {
-      const tx = await infinifundContract.finalizeScreening(projectId)
-      await tx.wait()
-      toast.success("Screening finalized!")
-      return tx
+      if (!isConnected) {
+        toast.error("Please connect your wallet first")
+        return
+      }
+
+      if (!state.isCitizen) {
+        toast.error("Only citizens can vote on project screening")
+        return
+      }
+
+      writeContract({
+        address: CONTRACT_ADDRESS as `0x${string}`,
+        abi: contractABI,
+        functionName: 'voteScreening',
+        args: [projectId, approve],
+        account: address!,
+        chain: flowTestnet,
+      })
+
+      toast.success(`Vote ${approve ? 'for' : 'against'} submitted!`)
+      
+      return true
     } catch (error: any) {
-      toast.error("Failed to finalize screening: " + error.message)
+      console.error("Error voting on screening:", error)
+      toast.error(error.message || "Failed to submit vote")
       throw error
     }
   }
 
-  const finalizeMilestone = async (projectId: number) => {
-    try {
-      const tx = await infinifundContract.finalizeMilestone(projectId)
-      await tx.wait()
-      toast.success("Milestone finalized!")
-      return tx
-    } catch (error: any) {
-      toast.error("Failed to finalize milestone: " + error.message)
-      throw error
-    }
-  }
-
-  const approveCitizenship = async (userAddress: string) => {
-    try {
-      const tx = await infinifundContract.approveCitizenship(userAddress)
-      await tx.wait()
-      toast.success("Citizenship approved!")
-      return tx
-    } catch (error: any) {
-      toast.error("Failed to approve citizenship: " + error.message)
-      throw error
-    }
-  }
-
-  const rejectCitizenship = async (userAddress: string) => {
-    try {
-      const tx = await infinifundContract.rejectCitizenship(userAddress)
-      await tx.wait()
-      toast.success("Citizenship rejected!")
-      return tx
-    } catch (error: any) {
-      toast.error("Failed to reject citizenship: " + error.message)
-      throw error
-    }
-  }
+  // Read-only functions (no signer needed)
+  const getAllProjects = () => infinifundContract.getAllProjects()
+  const getProjectById = (projectId: number) => infinifundContract.getProjectById(projectId)
+  const getProjectDetails = (projectId: number) => infinifundContract.getProjectDetails(projectId)
+  const getProject = (projectId: number) => infinifundContract.getProject(projectId)
+  const getTopProjects = (topN: number) => infinifundContract.getTopProjects(topN)
+  const getUserProjects = (address: string) => infinifundContract.getUserProjects(address)
+  const getUserInvestments = (address: string) => infinifundContract.getUserInvestments(address)
+  const getProjectCount = () => infinifundContract.getProjectCount()
+  const getPendingCitizenshipRequests = () => infinifundContract.getPendingCitizenshipRequests()
 
   return {
+    // State
     ...state,
-    connect,
-    disconnect,
+    
+    // Write functions
     requestCitizenship,
     submitProject,
-    voteScreening,
     fundProject,
-    finalizeScreening,
-    finalizeMilestone,
-    approveCitizenship,
-    rejectCitizenship,
-    refresh: checkConnection,
+    voteScreening,
+    
+    // Read functions
+    getAllProjects,
+    getProjectById,
+    getProjectDetails,
+    getProject,
+    getTopProjects,
+    getUserProjects,
+    getUserInvestments,
+    getProjectCount,
+    getPendingCitizenshipRequests,
+    
+    // Transaction state
+    isTransactionPending: isWritePending,
+    isTransactionConfirming: isConfirming,
+    isTransactionConfirmed: isConfirmed,
+    transactionHash: hash,
+    transactionError: writeError,
+    
+    // Utility
+    checkUserStatus,
   }
 }

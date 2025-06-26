@@ -1,6 +1,6 @@
 import { ethers } from "ethers"
 
-const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0x1234567890123456789012345678901234567890"
+const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0xbc29335737795E7E6839882D1aF663e21Db0E736"
 import contractABI from "./abi.json"
 
 export interface ProjectData {
@@ -73,88 +73,24 @@ export interface Project {
 }
 
 export class InfinifundContract {
-  private contract: ethers.Contract | null = null
-  private signer: ethers.Signer | null = null
-  private provider: ethers.BrowserProvider | null = null
+  private readOnlyProvider: ethers.JsonRpcProvider
 
   constructor() {
-    // Provider will be set via setProvider method from wallet context
+    // Initialize read-only provider for view functions only
+    this.readOnlyProvider = new ethers.JsonRpcProvider('https://testnet.evm.nodes.onflow.org')
   }
 
-  private async initializeProvider() {
-    // Provider will be initialized from wallet context, not window.ethereum
+  // Create a contract instance with read-only provider for view operations
+  private getReadContract(): ethers.Contract {
+    return new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.readOnlyProvider)
   }
 
-  // New method to initialize with external provider and signer
-  initializeWithProvider(provider: ethers.BrowserProvider, signer: ethers.Signer) {
-    this.provider = provider
-    this.signer = signer
-    this.contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer)
-  }
-
-  async connect(): Promise<string> {
-    if (!this.provider) {
-      throw new Error("No ethereum provider found. Please install MetaMask.")
-    }
-
-    await this.provider.send("eth_requestAccounts", [])
-    this.signer = await this.provider.getSigner()
-    this.contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.signer)
-
-    return await this.signer.getAddress()
-  }
-
-  // Citizenship functions
-  async requestCitizenship(): Promise<ethers.ContractTransactionResponse> {
-    await this.connect();
-    if (!this.contract) throw new Error("Contract not initialized")
-    return await this.contract.requestCitizenship()
-  }
-
-  async approveCitizenship(userAddress: string): Promise<ethers.ContractTransactionResponse> {
-    if (!this.contract) throw new Error("Contract not initialized")
-    return await this.contract.approveCitizenship(userAddress)
-  }
-
-  async rejectCitizenship(userAddress: string): Promise<ethers.ContractTransactionResponse> {
-    if (!this.contract) throw new Error("Contract not initialized")
-    return await this.contract.rejectCitizenship(userAddress)
-  }
-
-  async revokeCitizenship(userAddress: string): Promise<ethers.ContractTransactionResponse> {
-    if (!this.contract) throw new Error("Contract not initialized")
-    return await this.contract.revokeCitizenship(userAddress)
-  }
-
-  async addAdmin(newAdminAddress: string): Promise<ethers.ContractTransactionResponse> {
-    if (!this.contract) throw new Error("Contract not initialized")
-    return await this.contract.addAdmin(newAdminAddress)
-  }
-
-  async removeAdmin(adminAddress: string): Promise<ethers.ContractTransactionResponse> {
-    if (!this.contract) throw new Error("Contract not initialized")
-    return await this.contract.removeAdmin(adminAddress)
-  }
-
-  // Project functions
-  async submitProject(projectData: any) {
-    await this.connect();
-    console.log("My proejct data is;:::::::::::::",projectData);
-
-    if (!this.contract) throw new Error("Contract not initialized")
-    return await this.contract.submitProject(
-      projectData.name,
-      projectData.icon,
-      projectData.banner,
-      projectData.details,
-      projectData.milestoneDescriptions,
-      
-      projectData.fundingDuration,
-    )
-  }
+  // Note: All write functions are now handled by the useInfinifundContract hook using wagmi's writeContract
+  // This class only handles read operations now
 
   async getAllProjects(): Promise<ProjectView[]> {
-    const contract = this.contract || new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.provider)
+    // Use read-only provider for view functions
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.readOnlyProvider)
     const projectCount = Number(await contract.projectCount())
     const projects: ProjectView[] = []
 
@@ -180,7 +116,8 @@ export class InfinifundContract {
   }
 
   async getProjectById(projectId: number): Promise<ProjectView> {
-    const contract = this.contract || new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.provider)
+    // Use read-only provider for view functions
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.readOnlyProvider)
     const project = await contract.projects(projectId)
 
     return {
@@ -196,7 +133,8 @@ export class InfinifundContract {
   }
 
   async getProjectDetails(projectId: number): Promise<ProjectDetails> {
-    const contract = this.contract || new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.provider)
+    // Use read-only provider for view functions
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.readOnlyProvider)
     const project = await contract.projects(projectId)
 
     return {
@@ -217,78 +155,42 @@ export class InfinifundContract {
     }
   }
 
-  async voteScreening(projectId: number, approve: boolean): Promise<ethers.ContractTransactionResponse> {
-    if (!this.contract) throw new Error("Contract not initialized")
-    return await this.contract.voteScreening(projectId, approve)
-  }
-
-  async finalizeScreening(projectId: number): Promise<ethers.ContractTransactionResponse> {
-    if (!this.contract) throw new Error("Contract not initialized")
-    return await this.contract.finalizeScreening(projectId)
-  }
-
-  async fundProject(projectId: number, amount: string): Promise<ethers.ContractTransactionResponse> {
-    if (!this.contract) throw new Error("Contract not initialized")
-    return await this.contract.fundProject(projectId, {
-      value: ethers.parseEther(amount),
-    })
-  }
-
-  // Milestone functions
-  async submitMilestoneReport(projectId: number): Promise<ethers.ContractTransactionResponse> {
-    if (!this.contract) throw new Error("Contract not initialized")
-    return await this.contract.submitMilestoneReport(projectId)
-  }
-
-  async voteMilestone(projectId: number, approve: boolean): Promise<ethers.ContractTransactionResponse> {
-    if (!this.contract) throw new Error("Contract not initialized")
-    return await this.contract.voteMilestone(projectId, approve)
-  }
-
-  async finalizeMilestone(projectId: number): Promise<ethers.ContractTransactionResponse> {
-    if (!this.contract) throw new Error("Contract not initialized")
-    return await this.contract.finalizeMilestone(projectId)
-  }
-
-  async requestBailout(projectId: number): Promise<ethers.ContractTransactionResponse> {
-    if (!this.contract) throw new Error("Contract not initialized")
-    return await this.contract.requestBailout(projectId)
-  }
+  // Write functions are now handled by wagmi hooks in useInfinifundContract, not here
 
   // View functions
   async isCitizen(address: string): Promise<boolean> {
-    const contract = this.contract || new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.provider)
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.readOnlyProvider)
     return await contract.isCitizen(address)
   }
 
   async citizenshipPending(address: string): Promise<boolean> {
-    const contract = this.contract || new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.provider)
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.readOnlyProvider)
     return await contract.citizenshipPending(address)
   }
 
   async citizenshipRejected(address: string): Promise<boolean> {
-    const contract = this.contract || new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.provider)
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.readOnlyProvider)
     return await contract.citizenshipRejected(address)
   }
 
   async isAdmin(address: string): Promise<boolean> {
-    const contract = this.contract || new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.provider)
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.readOnlyProvider)
     return await contract.isAdmin(address)
   }
 
   async getAdmin(): Promise<string> {
-    const contract = this.contract || new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.provider)
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.readOnlyProvider)
     return await contract.admin()
   }
 
   async getProjectCount(): Promise<number> {
-    const contract = this.contract || new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.provider)
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.readOnlyProvider)
     const count = await contract.projectCount()
     return Number(count)
   }
 
   async getScreeningVotes(projectId: number): Promise<{ votesFor: number; votesAgainst: number }> {
-    const contract = this.contract || new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.provider)
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.readOnlyProvider)
     const [votesFor, votesAgainst] = await Promise.all([
       contract.screeningVotesFor(projectId),
       contract.screeningVotesAgainst(projectId),
@@ -300,35 +202,37 @@ export class InfinifundContract {
   }
 
   async hasVotedScreening(projectId: number, address: string): Promise<boolean> {
-    const contract = this.contract || new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.provider)
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.readOnlyProvider)
     return await contract.screeningVotes(projectId, address)
   }
 
   async hasVotedMilestone(projectId: number, milestoneId: number, address: string): Promise<boolean> {
-    const contract = this.contract || new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.provider)
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.readOnlyProvider)
     return await contract.milestoneInvestorVoted(projectId, milestoneId, address)
   }
 
   async getUserProjects(address: string): Promise<number[]> {
-    const contract = this.contract || new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.provider)
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.readOnlyProvider)
     const projects = await contract.getUserProjects(address)
     return projects.map((p: any) => Number(p))
   }
 
   async getUserInvestments(address: string): Promise<number[]> {
-    const contract = this.contract || new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.provider)
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.readOnlyProvider)
     const investments = await contract.getUserInvestments(address)
     return investments.map((p: any) => Number(p))
   }
 
   async getTopProjects(topN: number): Promise<number[]> {
-    const contract = this.contract || new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.provider)
+    // Use read-only provider for view functions
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.readOnlyProvider)
     const projects = await contract.getTopProjects(topN)
     return projects.map((p: any) => Number(p))
   }
 
   async getProject(projectId: number): Promise<Project> {
-    const contract = this.contract || new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.provider)
+    // Use read-only provider for view functions
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.readOnlyProvider)
     const project = await contract.projects(projectId)
 
     const milestoneCount = Number(project.milestoneCount)
@@ -366,7 +270,7 @@ export class InfinifundContract {
 
   // Get pending citizenship requests from events
   async getPendingCitizenshipRequests(): Promise<CitizenshipRequest[]> {
-    const contract = this.contract || new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.provider)
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.readOnlyProvider)
 
     try {
       // Get all CitizenshipRequested events
@@ -381,7 +285,7 @@ export class InfinifundContract {
           // Check if still pending
           const isPending = await this.citizenshipPending(userAddress)
           if (isPending) {
-            const block = await this.provider?.getBlock(event.blockNumber)
+            const block = await this.readOnlyProvider.getBlock(event.blockNumber)
             requests.push({
               address: userAddress,
               timestamp: block?.timestamp ? block.timestamp * 1000 : Date.now(),
@@ -397,45 +301,8 @@ export class InfinifundContract {
     }
   }
 
-  // Event listeners
-  onProjectSubmitted(callback: (projectId: number, creator: string) => void) {
-    if (!this.contract) return
-    this.contract.on("ProjectSubmitted", (projectId, creator) => {
-      callback(Number(projectId), creator)
-    })
-  }
-
-  onCitizenshipRequested(callback: (user: string) => void) {
-    if (!this.contract) return
-    this.contract.on("CitizenshipRequested", callback)
-  }
-
-  onProjectApproved(callback: (projectId: number) => void) {
-    if (!this.contract) return
-    this.contract.on("ProjectApproved", (projectId) => {
-      callback(Number(projectId))
-    })
-  }
-
-  onProjectFunded(callback: (projectId: number, investor: string, amount: string) => void) {
-    if (!this.contract) return
-    this.contract.on("ProjectFunded", (projectId, investor, amount) => {
-      callback(Number(projectId), investor, amount.toString())
-    })
-  }
-
-  onMilestoneReportSubmitted(callback: (projectId: number, milestoneId: number) => void) {
-    if (!this.contract) return
-    this.contract.on("MilestoneReportSubmitted", (projectId, milestoneId) => {
-      callback(Number(projectId), Number(milestoneId))
-    })
-  }
-
-  removeAllListeners() {
-    if (this.contract) {
-      this.contract.removeAllListeners()
-    }
-  }
+  // Event listeners - these would need to be implemented with a different approach
+  // using wagmi's useWatchContractEvent hook in React components
 }
 
-export const infinifundContract:any = new InfinifundContract()
+export const infinifundContract: InfinifundContract = new InfinifundContract()

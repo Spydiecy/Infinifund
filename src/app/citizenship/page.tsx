@@ -7,21 +7,23 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { ConnectButton } from '@rainbow-me/rainbowkit'
+import { useInfinifundContract } from "@/hooks/use-infinifund-contract"
 import { infinifundContract } from "@/lib/infinifund-contract"
 import { toast } from "sonner"
 
 export default function CitizenshipPage() {
-  const [userAddress, setUserAddress] = useState<string>("")
-  const [isConnected, setIsConnected] = useState(false)
-  const [isCitizen, setIsCitizen] = useState(false)
+  const { 
+    isConnected, 
+    userAddress, 
+    isCitizen, 
+    loading, 
+    requestCitizenship: submitCitizenshipRequest 
+  } = useInfinifundContract()
+  
   const [isPending, setIsPending] = useState(false)
   const [isRejected, setIsRejected] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
   const [isRequesting, setIsRequesting] = useState(false)
-
-  useEffect(() => {
-    checkConnection()
-  }, [])
 
   useEffect(() => {
     if (isConnected && userAddress) {
@@ -29,54 +31,24 @@ export default function CitizenshipPage() {
     }
   }, [isConnected, userAddress])
 
-  const checkConnection = async () => {
-    if (typeof window !== "undefined" && window.ethereum) {
-      try {
-        const accounts = await window.ethereum.request({ method: "eth_accounts" })
-        if (accounts.length > 0) {
-          setUserAddress(accounts[0])
-          setIsConnected(true)
-        }
-      } catch (error) {
-        console.error("Error checking connection:", error)
-      }
-    }
-  }
-
-  const connectWallet = async () => {
-    try {
-      const address = await infinifundContract.connect()
-      setUserAddress(address)
-      setIsConnected(true)
-      toast.success("Wallet connected successfully!")
-    } catch (error: any) {
-      toast.error("Failed to connect wallet: " + error.message)
-    }
-  }
-
   const checkCitizenshipStatus = async () => {
     if (!userAddress) return
 
-    setIsLoading(true)
     try {
-      const [citizen, pending, rejected] = await Promise.all([
-        infinifundContract.isCitizen(userAddress),
+      const [pending, rejected] = await Promise.all([
         infinifundContract.citizenshipPending(userAddress),
         infinifundContract.citizenshipRejected(userAddress)
       ])
 
-      setIsCitizen(citizen)
       setIsPending(pending)
       setIsRejected(rejected)
     } catch (error) {
       console.error("Error checking citizenship status:", error)
       toast.error("Failed to check citizenship status")
-    } finally {
-      setIsLoading(false)
     }
   }
 
-  const requestCitizenship = async () => {
+  const handleCitizenshipRequest = async () => {
     if (!isConnected) {
       toast.error("Please connect your wallet first")
       return
@@ -84,12 +56,7 @@ export default function CitizenshipPage() {
 
     setIsRequesting(true)
     try {
-      toast.info("Submitting citizenship request...")
-      const tx = await infinifundContract.requestCitizenship()
-      
-      toast.info("Transaction submitted. Waiting for confirmation...")
-      await tx.wait()
-      
+      await submitCitizenshipRequest()
       toast.success("Citizenship request submitted successfully!")
       await checkCitizenshipStatus()
     } catch (error: any) {
@@ -185,14 +152,12 @@ export default function CitizenshipPage() {
                   <div className="flex items-center gap-4">
                     <div className={`w-4 h-4 rounded-full ${isConnected ? "bg-green-400" : "bg-red-400"} animate-pulse`} />
                     <span className="text-white font-medium">
-                      {isConnected ? `Connected: ${userAddress.slice(0, 6)}...${userAddress.slice(-4)}` : "Not Connected"}
+                      {isConnected ? `Connected: ${userAddress?.slice(0, 6)}...${userAddress?.slice(-4)}` : "Not Connected"}
                     </span>
                     {isConnected && getStatusBadge()}
                   </div>
                   {!isConnected && (
-                    <Button onClick={connectWallet} className="bg-blue-600 hover:bg-blue-700">
-                      Connect Wallet
-                    </Button>
+                    <ConnectButton />
                   )}
                 </div>
               </CardContent>
@@ -221,7 +186,7 @@ export default function CitizenshipPage() {
                   {/* Action Button */}
                   {!isCitizen && !isPending && isConnected && (
                     <Button
-                      onClick={requestCitizenship}
+                      onClick={handleCitizenshipRequest}
                       disabled={isRequesting || isRejected}
                       className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3 text-lg font-semibold disabled:opacity-50"
                       size="lg"
