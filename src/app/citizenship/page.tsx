@@ -1,12 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { motion } from "framer-motion"
-import { UserCheck, Clock, XCircle, CheckCircle, AlertCircle, Zap, Shield } from 'lucide-react'
+import { UserCheck, Clock, XCircle, CheckCircle, AlertCircle, Shield } from 'lucide-react'
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { useInfinifundContract } from "@/hooks/use-infinifund-contract"
 import { infinifundContract } from "@/lib/infinifund-contract"
@@ -24,6 +21,7 @@ export default function CitizenshipPage() {
   const [isPending, setIsPending] = useState(false)
   const [isRejected, setIsRejected] = useState(false)
   const [isRequesting, setIsRequesting] = useState(false)
+  const [actualCitizenStatus, setActualCitizenStatus] = useState(false)
 
   useEffect(() => {
     if (isConnected && userAddress) {
@@ -35,13 +33,18 @@ export default function CitizenshipPage() {
     if (!userAddress) return
 
     try {
-      const [pending, rejected] = await Promise.all([
-        infinifundContract.citizenshipPending(userAddress),
-        infinifundContract.citizenshipRejected(userAddress)
-      ])
-
-      setIsPending(pending)
-      setIsRejected(rejected)
+      // Reset states first
+      setIsPending(false)
+      setIsRejected(false)
+      setActualCitizenStatus(false)
+      
+      const status = await infinifundContract.getCitizenshipStatus(userAddress)
+      console.log("Citizenship status from contract:", status)
+      
+      // Use contract data as source of truth
+      setActualCitizenStatus(status.isCitizen)
+      setIsPending(status.isPending)
+      setIsRejected(status.isRejected)
     } catch (error) {
       console.error("Error checking citizenship status:", error)
       toast.error("Failed to check citizenship status")
@@ -57,7 +60,7 @@ export default function CitizenshipPage() {
     setIsRequesting(true)
     try {
       await submitCitizenshipRequest()
-      toast.success("Citizenship request submitted successfully!")
+      toast.success("Citizenship application submitted successfully! Your request is now under review.")
       await checkCitizenshipStatus()
     } catch (error: any) {
       console.error("Error requesting citizenship:", error)
@@ -68,37 +71,33 @@ export default function CitizenshipPage() {
   }
 
   const getStatusBadge = () => {
-    if (isCitizen) {
-      return <Badge className="bg-green-500/20 text-green-300 border-green-500/30">✓ Citizen</Badge>
-    }
+    // Check pending first, then rejected, then citizen status
     if (isPending) {
-      return <Badge className="bg-yellow-500/20 text-yellow-300 border-yellow-500/30">⏳ Pending</Badge>
+      return <Badge className="bg-yellow-500/20 text-yellow-300 border border-yellow-500/30">⏳ Pending</Badge>
     }
     if (isRejected) {
-      return <Badge className="bg-red-500/20 text-red-300 border-red-500/30">✗ Rejected</Badge>
+      return <Badge className="bg-red-500/20 text-red-300 border border-red-500/30">✗ Rejected</Badge>
     }
-    return <Badge className="bg-gray-500/20 text-gray-300 border-gray-500/30">Not Applied</Badge>
+    if (actualCitizenStatus) {
+      return <Badge className="bg-green-500/20 text-green-300 border border-green-500/30">✓ Citizen</Badge>
+    }
+    return <Badge className="bg-white/20 text-gray-300 border border-white/30">Not Applied</Badge>
   }
 
   const getStatusIcon = () => {
-    if (isCitizen) return <CheckCircle className="h-16 w-16 text-green-400" />
+    // Check pending first, then rejected, then citizen status
     if (isPending) return <Clock className="h-16 w-16 text-yellow-400" />
     if (isRejected) return <XCircle className="h-16 w-16 text-red-400" />
-    return <UserCheck className="h-16 w-16 text-blue-400" />
+    if (actualCitizenStatus) return <CheckCircle className="h-16 w-16 text-green-400" />
+    return <UserCheck className="h-16 w-16 text-white" />
   }
 
   const getStatusMessage = () => {
-    if (isCitizen) {
-      return {
-        title: "Welcome, Infinita Citizen!",
-        description: "You are now a verified citizen of Infinita City. You can submit projects, vote on proposals, and participate in the ecosystem.",
-        color: "text-green-300"
-      }
-    }
+    // Check pending first, then rejected, then citizen status
     if (isPending) {
       return {
         title: "Application Under Review",
-        description: "Your citizenship request is being reviewed by the Infinita City administrators. Please wait for approval.",
+        description: "Your citizenship request is being reviewed by the administrators. Please wait for approval.",
         color: "text-yellow-300"
       }
     }
@@ -109,190 +108,196 @@ export default function CitizenshipPage() {
         color: "text-red-300"
       }
     }
+    if (actualCitizenStatus) {
+      return {
+        title: "Welcome, Infinifund Citizen!",
+        description: "You are now a verified citizen. You can submit projects, vote on proposals, and participate in the ecosystem.",
+        color: "text-green-300"
+      }
+    }
     return {
       title: "Apply for Citizenship",
-      description: "Join the Infinita City community by applying for citizenship. Citizens can submit projects and participate in governance.",
-      color: "text-blue-300"
+      description: "Join the Infinifund community by applying for citizenship. Citizens can submit projects and participate in governance.",
+      color: "text-white"
     }
   }
 
   const status = getStatusMessage()
 
   return (
-    <div className="min-h-screen bg-black relative overflow-hidden">
-      {/* Animated Background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-black to-purple-900/20" />
-      <div className="absolute inset-0">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse delay-1000" />
-      </div>
-
-      <div className="relative z-10 p-6">
-        <div className="max-w-4xl mx-auto">
-          {/* Header */}
-          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-12">
-            <div className="flex items-center justify-center gap-3 mb-4">
-              <Zap className="h-8 w-8 text-blue-400" />
-              <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-400 via-white to-purple-400 bg-clip-text text-transparent">
-                Infinita Citizenship
-              </h1>
-              <Shield className="h-8 w-8 text-purple-400" />
+    <div className="min-h-screen bg-black">
+      <div className="max-w-4xl mx-auto px-6 py-12">
+        {/* Header */}
+        <div className="text-center mb-12">
+          <div className="flex items-center justify-center gap-3 mb-6">
+            <div className="w-12 h-12 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center">
+              <Shield className="w-6 h-6 text-white" />
             </div>
-            <p className="text-xl text-blue-300 mb-2">"The City That Never Dies"</p>
-            <p className="text-gray-300 text-lg max-w-3xl mx-auto">
-              Become a verified citizen of Infinita City and join the frontier of human longevity and technological advancement
-            </p>
-          </motion.div>
+            <h1 className="text-4xl font-bold text-white">
+              Infinifund Citizenship
+            </h1>
+          </div>
+          <p className="text-lg text-gray-300 max-w-2xl mx-auto">
+            Become a verified citizen to submit projects, vote on proposals, and participate in the Infinifund ecosystem.
+          </p>
+        </div>
 
-          {/* Connection Status */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-            <Card className="mb-8 bg-gray-900/50 border-blue-500/30 backdrop-blur-sm">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className={`w-4 h-4 rounded-full ${isConnected ? "bg-green-400" : "bg-red-400"} animate-pulse`} />
-                    <span className="text-white font-medium">
-                      {isConnected ? `Connected: ${userAddress?.slice(0, 6)}...${userAddress?.slice(-4)}` : "Not Connected"}
-                    </span>
-                    {isConnected && getStatusBadge()}
-                  </div>
-                  {!isConnected && (
-                    <ConnectButton />
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          {/* Main Content */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
-            {/* Status Card */}
-            <Card className="bg-gray-900/50 border-gray-700/50 backdrop-blur-sm">
-              <CardContent className="p-8">
-                <div className="text-center space-y-6">
-                  <div className="flex justify-center">
-                    {getStatusIcon()}
-                  </div>
-                  
-                  <div>
-                    <h2 className={`text-3xl font-bold mb-2 ${status.color}`}>
-                      {status.title}
-                    </h2>
-                    <p className="text-gray-300 text-lg max-w-2xl mx-auto">
-                      {status.description}
-                    </p>
-                  </div>
-
-                  {/* Action Button */}
-                  {!isCitizen && !isPending && isConnected && (
-                    <Button
-                      onClick={handleCitizenshipRequest}
-                      disabled={isRequesting || isRejected}
-                      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3 text-lg font-semibold disabled:opacity-50"
-                      size="lg"
-                    >
-                      {isRequesting ? (
-                        <>
-                          <Clock className="h-5 w-5 mr-2 animate-spin" />
-                          Requesting Citizenship...
-                        </>
-                      ) : (
-                        <>
-                          <UserCheck className="h-5 w-5 mr-2" />
-                          Request Citizenship
-                        </>
-                      )}
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Information Cards */}
-            <div className="grid md:grid-cols-2 gap-6">
-              <Card className="bg-gray-900/50 border-blue-500/30 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle className="text-white flex items-center gap-2">
-                    <CheckCircle className="h-5 w-5 text-blue-400" />
-                    Citizen Benefits
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex items-center gap-3 text-gray-300">
-                    <div className="w-2 h-2 bg-blue-400 rounded-full" />
-                    <span>Submit breakthrough projects for funding</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-gray-300">
-                    <div className="w-2 h-2 bg-blue-400 rounded-full" />
-                    <span>Vote on project proposals and governance</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-gray-300">
-                    <div className="w-2 h-2 bg-blue-400 rounded-full" />
-                    <span>Access to exclusive Infinita City events</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-gray-300">
-                    <div className="w-2 h-2 bg-blue-400 rounded-full" />
-                    <span>Participate in longevity research initiatives</span>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gray-900/50 border-purple-500/30 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle className="text-white flex items-center gap-2">
-                    <AlertCircle className="h-5 w-5 text-purple-400" />
-                    Requirements
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex items-center gap-3 text-gray-300">
-                    <div className="w-2 h-2 bg-purple-400 rounded-full" />
-                    <span>Valid Ethereum wallet address</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-gray-300">
-                    <div className="w-2 h-2 bg-purple-400 rounded-full" />
-                    <span>Commitment to Infinita City values</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-gray-300">
-                    <div className="w-2 h-2 bg-purple-400 rounded-full" />
-                    <span>Interest in longevity and frontier tech</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-gray-300">
-                    <div className="w-2 h-2 bg-purple-400 rounded-full" />
-                    <span>Admin approval required</span>
-                  </div>
-                </CardContent>
-              </Card>
+        {/* Connection Status */}
+        <div className="mb-8">
+          <div className="bg-black/50 border border-white/20 rounded-xl p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className={`w-3 h-3 rounded-full ${isConnected ? "bg-green-400" : "bg-red-400"}`} />
+                <span className="text-white font-medium">
+                  {isConnected ? `Connected: ${userAddress?.slice(0, 6)}...${userAddress?.slice(-4)}` : "Wallet Not Connected"}
+                </span>
+                {isConnected && getStatusBadge()}
+              </div>
+              {!isConnected && (
+                <ConnectButton />
+              )}
             </div>
+          </div>
+        </div>
 
-            {/* Alerts */}
-            {isRejected && (
-              <Alert className="border-red-500/30 bg-red-500/10">
-                <XCircle className="h-4 w-4 text-red-400" />
-                <AlertDescription className="text-red-300">
-                  Your citizenship application was rejected. You may need to wait before applying again or contact an administrator for more information.
-                </AlertDescription>
-              </Alert>
-            )}
+        {/* Main Status Card */}
+        <div className="mb-8">
+          <div className="bg-black/50 border border-white/20 rounded-xl p-8">
+            <div className="text-center space-y-6">
+              <div className="flex justify-center">
+                {getStatusIcon()}
+              </div>
+              
+              <div>
+                <h2 className={`text-3xl font-bold mb-3 ${status.color}`}>
+                  {status.title}
+                </h2>
+                <p className="text-gray-300 text-lg max-w-2xl mx-auto">
+                  {status.description}
+                </p>
+              </div>
 
-            {isPending && (
-              <Alert className="border-yellow-500/30 bg-yellow-500/10">
-                <Clock className="h-4 w-4 text-yellow-400" />
-                <AlertDescription className="text-yellow-300">
-                  Your citizenship application is under review. Administrators will process your request soon.
-                </AlertDescription>
-              </Alert>
-            )}
+              {/* Action Button */}
+              {!actualCitizenStatus && !isPending && !isRejected && isConnected && (
+                <Button
+                  onClick={handleCitizenshipRequest}
+                  disabled={isRequesting}
+                  className="bg-white text-black hover:bg-gray-200 px-8 py-3 text-lg font-semibold disabled:opacity-50 transition-colors"
+                  size="lg"
+                >
+                  {isRequesting ? (
+                    <>
+                      <Clock className="h-5 w-5 mr-2 animate-spin" />
+                      Submitting Application...
+                    </>
+                  ) : (
+                    <>
+                      <UserCheck className="h-5 w-5 mr-2" />
+                      Apply for Citizenship
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
 
-            {isCitizen && (
-              <Alert className="border-green-500/30 bg-green-500/10">
-                <CheckCircle className="h-4 w-4 text-green-400" />
-                <AlertDescription className="text-green-300">
-                  Welcome to Infinita City! You can now participate fully in our ecosystem of longevity and frontier technology.
-                </AlertDescription>
-              </Alert>
-            )}
-          </motion.div>
+        {/* Information Cards */}
+        <div className="grid md:grid-cols-2 gap-6 mb-8">
+          <div className="bg-black/50 border border-white/20 rounded-xl p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <CheckCircle className="h-6 w-6 text-white" />
+              <h3 className="text-xl font-semibold text-white">Citizen Benefits</h3>
+            </div>
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 text-gray-300">
+                <div className="w-2 h-2 bg-white rounded-full" />
+                <span>Submit projects for community funding</span>
+              </div>
+              <div className="flex items-center gap-3 text-gray-300">
+                <div className="w-2 h-2 bg-white rounded-full" />
+                <span>Vote on project proposals</span>
+              </div>
+              <div className="flex items-center gap-3 text-gray-300">
+                <div className="w-2 h-2 bg-white rounded-full" />
+                <span>Participate in platform governance</span>
+              </div>
+              <div className="flex items-center gap-3 text-gray-300">
+                <div className="w-2 h-2 bg-white rounded-full" />
+                <span>Access to funded project updates</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-black/50 border border-white/20 rounded-xl p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <AlertCircle className="h-6 w-6 text-white" />
+              <h3 className="text-xl font-semibold text-white">Requirements</h3>
+            </div>
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 text-gray-300">
+                <div className="w-2 h-2 bg-white rounded-full" />
+                <span>Valid wallet connection</span>
+              </div>
+              <div className="flex items-center gap-3 text-gray-300">
+                <div className="w-2 h-2 bg-white rounded-full" />
+                <span>Commitment to platform values</span>
+              </div>
+              <div className="flex items-center gap-3 text-gray-300">
+                <div className="w-2 h-2 bg-white rounded-full" />
+                <span>No previous rejections</span>
+              </div>
+              <div className="flex items-center gap-3 text-gray-300">
+                <div className="w-2 h-2 bg-white rounded-full" />
+                <span>Admin approval required</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Status Alerts - Show only one based on priority */}
+        <div className="space-y-4">
+          {isPending && (
+            <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
+              <div className="flex items-start gap-3">
+                <Clock className="h-5 w-5 text-yellow-400 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-yellow-300 font-medium">Application Under Review</p>
+                  <p className="text-yellow-300/80 text-sm mt-1">
+                    Your citizenship application is being reviewed. Administrators will process your request soon.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!isPending && isRejected && (
+            <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl">
+              <div className="flex items-start gap-3">
+                <XCircle className="h-5 w-5 text-red-400 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-red-300 font-medium">Application Rejected</p>
+                  <p className="text-red-300/80 text-sm mt-1">
+                    Your citizenship application was rejected. You may need to wait before applying again or contact an administrator.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!isPending && !isRejected && actualCitizenStatus && (
+            <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-xl">
+              <div className="flex items-start gap-3">
+                <CheckCircle className="h-5 w-5 text-green-400 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-green-300 font-medium">Welcome, Citizen!</p>
+                  <p className="text-green-300/80 text-sm mt-1">
+                    You can now participate fully in the Infinifund ecosystem. Submit projects, vote, and help shape the future.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
