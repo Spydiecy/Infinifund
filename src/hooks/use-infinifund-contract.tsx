@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from "wagmi"
-import { infinifundContract, type ProjectData, type ProjectView, type ProjectDetails, type Project, type CitizenshipRequest } from "@/lib/infinifund-contract"
+import { infinifundContract, type ProjectData, type ProjectView, type ProjectDetails, type CitizenshipRequest } from "@/lib/infinifund-contract"
 import { toast } from "sonner"
 import { flowTestnet } from "@/lib/rainbowkit-config"
 import contractABI from "@/lib/abi.json"
@@ -475,24 +475,6 @@ export function useInfinifundContract() {
     }
   }
 
-  const getCitizenshipApplication = async (userAddress: string) => {
-    try {
-      return await infinifundContract.getCitizenshipApplication(userAddress)
-    } catch (error) {
-      console.error("Error getting citizenship application:", error)
-      throw error
-    }
-  }
-
-  const getUserApplications = async (userAddress: string) => {
-    try {
-      return await infinifundContract.getUserApplications(userAddress)
-    } catch (error) {
-      console.error("Error getting user applications:", error)
-      return []
-    }
-  }
-
   const applyCitizenship = async () => {
     try {
       if (!isConnected) {
@@ -547,8 +529,6 @@ export function useInfinifundContract() {
     getScreeningVotes,
     isCitizen,
     isAdmin,
-    getCitizenshipApplication,
-    getUserApplications,
     
     // Contract data
     projectCount: projectCountData ? Number(projectCountData) : 0,

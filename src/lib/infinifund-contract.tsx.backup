@@ -1,0 +1,427 @@
+import { ethers } from "ethers"
+
+const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0xbc29335737795E7E6839882D1aF663e21Db0E736"
+import contractABI from "./abi.json"
+
+export interface ProjectData {
+  name: string
+  icon: string
+  banner: string
+  details: string
+  milestoneDescriptions: string[]
+  fundingDuration: number
+}
+
+export interface ProjectView {
+  project_id: number
+  name: string
+  creator: string
+  approvedForFunding: boolean
+  totalFunds: string
+  currentMilestone: number
+  milestoneCount: number
+  fundingExpired: boolean
+}
+
+export interface ProjectDetails {
+  project_id: number
+  name: string
+  icon: string
+  banner: string
+  details: string
+  creator: string
+  approvedForFunding: boolean
+  exists: boolean
+  totalFunds: string
+  currentMilestone: number
+  fundingDeadline: number
+  milestoneCount: number
+  fundingExpired: boolean
+  investors: string[]
+  milestones: Milestone[]
+}
+
+export interface Milestone {
+  description: string
+  completed: boolean
+  fundsReleased: string
+  reportSubmitted: boolean
+  votesFor: number
+  votesAgainst: number
+}
+
+export interface CitizenshipRequest {
+  address: string
+  timestamp: number
+}
+
+export interface Project {
+  id: number
+  name: string
+  icon: string
+  banner: string
+  details: string
+  creator: string
+  approvedForFunding: boolean
+  exists: boolean
+  totalFunds: string
+  currentMilestone: number
+  fundingDeadline: number
+  milestoneCount: number
+  fundingExpired: boolean
+  investors: string[]
+  milestones: Milestone[]
+}
+
+export class InfinifundContract {
+  private readOnlyProvider: ethers.JsonRpcProvider
+
+  constructor() {
+    // Initialize read-only provider for view functions only
+    this.readOnlyProvider = new ethers.JsonRpcProvider('https://testnet.evm.nodes.onflow.org')
+  }
+
+  // Create a contract instance with read-only provider for view operations
+  private getReadContract(): ethers.Contract {
+    return new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.readOnlyProvider)
+  }
+
+  // Note: All write functions are now handled by the useInfinifundContract hook using wagmi's writeContract
+  // This class only handles read operations now
+
+  async getAllProjects(): Promise<ProjectView[]> {
+    // Use read-only provider for view functions
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.readOnlyProvider)
+    const projectCount = Number(await contract.projectCount())
+    const projects: ProjectView[] = []
+
+    for (let i = 1; i <= projectCount; i++) {
+      try {
+        const project = await contract.projects(i)
+        projects.push({
+          project_id: i,
+          name: project.name,
+          creator: project.creator,
+          approvedForFunding: project.approvedForFunding,
+          totalFunds: project.totalFunds.toString(),
+          currentMilestone: Number(project.currentMilestone),
+          milestoneCount: Number(project.milestoneCount),
+          fundingExpired: project.fundingExpired,
+        })
+      } catch (error) {
+        console.error(`Error fetching project ${i}:`, error)
+      }
+    }
+
+    return projects
+  }
+
+  async getProjectById(projectId: number): Promise<ProjectView> {
+    // Use read-only provider for view functions
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.readOnlyProvider)
+    const project = await contract.projects(projectId)
+
+    return {
+      project_id: projectId,
+      name: project.name,
+      creator: project.creator,
+      approvedForFunding: project.approvedForFunding,
+      totalFunds: project.totalFunds.toString(),
+      currentMilestone: Number(project.currentMilestone),
+      milestoneCount: Number(project.milestoneCount),
+      fundingExpired: project.fundingExpired,
+    }
+  }
+
+  async getProjectDetails(projectId: number): Promise<ProjectDetails> {
+    try {
+      const contract = this.getReadContract()
+      const project = await contract.projects(projectId)
+      
+      // For now, skip milestone fetching since the contract doesn't have projectMilestones function
+      let milestones: Milestone[] = []
+      
+      // Create placeholder milestones based on milestone count
+      for (let i = 0; i < Number(project.milestoneCount); i++) {
+        milestones.push({
+          description: `Milestone ${i + 1}`,
+          completed: i < Number(project.currentMilestone),
+          fundsReleased: "0",
+          reportSubmitted: false,
+          votesFor: 0,
+          votesAgainst: 0,
+        })
+      }
+
+      return {
+        project_id: projectId,
+        name: project.name || "Unknown Project",
+        icon: project.icon || "",
+        banner: project.banner || "",
+        details: project.details || "",
+        creator: project.creator || "",
+        approvedForFunding: !!project.approvedForFunding,
+        exists: !!project.exists,
+        totalFunds: project.totalFunds?.toString() || "0",
+        currentMilestone: Number(project.currentMilestone) || 0,
+        fundingDeadline: Number(project.fundingDeadline) || 0,
+        milestoneCount: Number(project.milestoneCount) || 0,
+        fundingExpired: !!project.fundingExpired,
+        investors: [], // Will be populated by a separate function if needed
+        milestones: milestones,
+      }
+    } catch (error) {
+      console.error("Error fetching project details:", error)
+      throw error
+    }
+  }
+
+  // Write functions are now handled by wagmi hooks in useInfinifundContract, not here
+
+  // View functions
+  async isCitizen(address: string): Promise<boolean> {
+    try {
+      const contract = this.getReadContract()
+      return await contract.isCitizen(address)
+    } catch (error) {
+      console.error("Error checking citizen status:", error)
+      return false
+    }
+  }
+
+  async citizenshipPending(address: string): Promise<boolean> {
+    try {
+      const contract = this.getReadContract()
+      return await contract.citizenshipPending(address)
+    } catch (error) {
+      console.error("Error checking citizenship pending status:", error)
+      return false
+    }
+  }
+
+  async citizenshipRejected(address: string): Promise<boolean> {
+    try {
+      const contract = this.getReadContract()
+      return await contract.citizenshipRejected(address)
+    } catch (error) {
+      console.error("Error checking citizenship rejected status:", error)
+      return false
+    }
+  }
+
+  async isAdmin(address: string): Promise<boolean> {
+    try {
+      const contract = this.getReadContract()
+      return await contract.isAdmin(address)
+    } catch (error) {
+      console.error("Error checking admin status:", error)
+      return false
+    }
+  }
+
+  async getAdmin(): Promise<string> {
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.readOnlyProvider)
+    return await contract.admin()
+  }
+
+  async getProjectCount(): Promise<number> {
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.readOnlyProvider)
+    const count = await contract.projectCount()
+    return Number(count)
+  }
+
+  async getScreeningVotes(projectId: number): Promise<{ votesFor: number; votesAgainst: number }> {
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.readOnlyProvider)
+    const [votesFor, votesAgainst] = await Promise.all([
+      contract.screeningVotesFor(projectId),
+      contract.screeningVotesAgainst(projectId),
+    ])
+    return {
+      votesFor: Number(votesFor),
+      votesAgainst: Number(votesAgainst),
+    }
+  }
+
+  async hasVotedScreening(projectId: number, address: string): Promise<boolean> {
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.readOnlyProvider)
+    return await contract.screeningVotes(projectId, address)
+  }
+
+  async hasVotedMilestone(projectId: number, milestoneId: number, address: string): Promise<boolean> {
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.readOnlyProvider)
+    return await contract.milestoneInvestorVoted(projectId, milestoneId, address)
+  }
+
+  async getUserProjects(address: string): Promise<ProjectView[]> {
+    try {
+      const contract = this.getReadContract()
+      const projectIds = await contract.getUserProjects(address)
+      const projects: ProjectView[] = []
+      
+      for (const id of projectIds) {
+        try {
+          const projectData = await contract.getProjectView(id)
+          projects.push({
+            project_id: Number(projectData.project_id),
+            name: projectData.name,
+            creator: projectData.creator,
+            approvedForFunding: projectData.approvedForFunding,
+            totalFunds: projectData.totalFunds.toString(),
+            currentMilestone: Number(projectData.currentMilestone),
+            milestoneCount: Number(projectData.milestoneCount),
+            fundingExpired: projectData.fundingExpired,
+          })
+        } catch (error) {
+          console.error(`Error fetching project ${id}:`, error)
+        }
+      }
+      
+      return projects
+    } catch (error) {
+      console.error("Error fetching user projects:", error)
+      return []
+    }
+  }
+
+  async getUserInvestments(address: string): Promise<any[]> {
+    try {
+      const contract = this.getReadContract()
+      const investmentIds = await contract.getUserInvestments(address)
+      const investments: any[] = []
+      
+      for (const id of investmentIds) {
+        try {
+          const projectData = await this.getProjectById(Number(id))
+          
+          investments.push({
+            projectId: Number(id),
+            projectTitle: projectData.name,
+            amount: "0", // Would need to get from contract
+            timestamp: Date.now() / 1000,
+            status: projectData.fundingExpired ? 'Completed' : 'Active'
+          })
+        } catch (error) {
+          console.error(`Error fetching investment for project ${id}:`, error)
+        }
+      }
+      
+      return investments
+    } catch (error) {
+      console.error("Error fetching user investments:", error)
+      return []
+    }
+  }
+
+  async getProject(projectId: number): Promise<ProjectDetails> {
+    try {
+      const contract = this.getReadContract()
+      const project = await contract.projects(projectId)
+      
+      // Get milestones with actual data from contract
+      let milestones: Milestone[] = []
+      for (let i = 0; i < Number(project.milestoneCount); i++) {
+        try {
+          milestones.push({
+            description: `Milestone ${i + 1}`,
+            completed: i < Number(project.currentMilestone),
+            fundsReleased: i < Number(project.currentMilestone) ? (BigInt(project.totalFunds) / BigInt(project.milestoneCount)).toString() : "0",
+            reportSubmitted: i <= Number(project.currentMilestone),
+            votesFor: 0,
+            votesAgainst: 0,
+          })
+        } catch (error) {
+          console.error(`Error fetching milestone ${i}:`, error)
+        }
+      }
+      
+      return {
+        project_id: projectId,
+        name: project.name,
+        icon: project.icon,
+        banner: project.banner,
+        details: project.details,
+        creator: project.creator,
+        approvedForFunding: project.approvedForFunding,
+        exists: project.exists,
+        totalFunds: project.totalFunds.toString(),
+        currentMilestone: Number(project.currentMilestone),
+        fundingDeadline: Number(project.fundingDeadline),
+        milestoneCount: Number(project.milestoneCount),
+        fundingExpired: project.fundingExpired,
+        investors: [],
+        milestones: milestones
+      }
+    } catch (error) {
+      console.error('Error getting project details:', error)
+      throw error
+    }
+  }
+
+  // View functions for screening votes
+  async getScreeningVotes(projectId: number): Promise<{ votesFor: number, votesAgainst: number }> {
+    try {
+      const contract = this.getReadContract()
+      const votesFor = await contract.screeningVotesFor(projectId)
+      const votesAgainst = await contract.screeningVotesAgainst(projectId)
+      
+      return {
+        votesFor: Number(votesFor),
+        votesAgainst: Number(votesAgainst)
+      }
+    } catch (error) {
+      console.error('Error getting screening votes:', error)
+      return { votesFor: 0, votesAgainst: 0 }
+    }
+  }
+
+  async hasVotedScreening(projectId: number, userAddress: string): Promise<boolean> {
+    try {
+      const contract = this.getReadContract()
+      return await contract.screeningVotes(projectId, userAddress)
+    } catch (error) {
+      console.error('Error checking if user has voted:', error)
+      return false
+    }
+  }
+
+  async getTopProjects(topN: number = 10): Promise<number[]> {
+    try {
+      const contract = this.getReadContract()
+      const topProjectIds = await contract.getTopProjects(topN)
+      
+      return topProjectIds.map((id: any) => Number(id))
+    } catch (error) {
+      console.error('Error getting top projects:', error)
+      return []
+    }
+  }
+
+  async getContractBalance(): Promise<string> {
+    try {
+      const contract = this.getReadContract()
+      const balance = await contract.getContractBalance()
+      
+      return balance.toString()
+    } catch (error) {
+      console.error('Error getting contract balance:', error)
+      return "0"
+    }
+  }
+
+  // Wallet connection helper (for legacy compatibility)
+  async connect(): Promise<string> {
+    if (typeof window !== "undefined" && window.ethereum) {
+      try {
+        const accounts = await window.ethereum.request({ method: "eth_requestAccounts" })
+        return accounts[0]
+      } catch (error) {
+        console.error("Error connecting wallet:", error)
+        throw error
+      }
+    }
+    throw new Error("Ethereum wallet not found")
+  }
+}
+}
+
+export const infinifundContract: InfinifundContract = new InfinifundContract()

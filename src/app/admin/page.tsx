@@ -84,14 +84,8 @@ export default function AdminPage() {
     }
   }, [isConnected, userAddress])
 
-  useEffect(() => {
-    if (isAdmin) {
-      console.log("Admin page: User is admin, loading data...")
-      loadAdminData()
-    } else {
-      console.log("Admin page: User is not admin")
-    }
-  }, [isAdmin])
+  // Removed auto-loading useEffect to prevent overloading
+  // Data will only be loaded manually via "Load Data" button
 
   const checkMainAdminStatus = async () => {
     try {
@@ -129,11 +123,8 @@ export default function AdminPage() {
       console.log("Approving citizenship for:", address)
       toast.info("Submitting approval transaction...")
       await approveCitizenship(address)
-      toast.success("Approval transaction submitted!")
-      // Wait a bit then reload data
-      setTimeout(() => {
-        loadAdminData()
-      }, 2000)
+      toast.success("Approval transaction submitted! Click 'Load Data' to refresh.")
+      // Removed auto-reload - user must manually refresh
     } catch (error: any) {
       console.error("Failed to approve citizenship:", error)
       const errorMessage = error?.message || "Failed to approve citizenship"
@@ -149,11 +140,8 @@ export default function AdminPage() {
       console.log("Rejecting citizenship for:", address)
       toast.info("Submitting rejection transaction...")
       await rejectCitizenship(address)
-      toast.success("Rejection transaction submitted!")
-      // Wait a bit then reload data
-      setTimeout(() => {
-        loadAdminData()
-      }, 2000)
+      toast.success("Rejection transaction submitted! Click 'Load Data' to refresh.")
+      // Removed auto-reload - user must manually refresh
     } catch (error: any) {
       console.error("Failed to reject citizenship:", error)
       const errorMessage = error?.message || "Failed to reject citizenship"
@@ -234,11 +222,8 @@ export default function AdminPage() {
       console.log("Approval result:", result)
       
       if (result) {
-        toast.success("Project approval transaction submitted!")
-        // Wait a bit then reload data
-        setTimeout(() => {
-          loadAdminData()
-        }, 3000)
+        toast.success("Project approval transaction submitted! Click 'Load Data' to refresh.")
+        // Removed auto-reload - user must manually refresh
       }
     } catch (error: any) {
       console.error("Failed to approve project:", error)
@@ -424,29 +409,10 @@ export default function AdminPage() {
               <button
                 onClick={loadAdminData}
                 disabled={refreshingData}
-                className="flex items-center gap-2 px-3 py-2 bg-black/30 rounded-lg border border-white/20 text-white hover:bg-black/40 transition-colors disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-2 bg-white/10 rounded-lg border border-white/20 text-white hover:bg-white/20 transition-colors disabled:opacity-50 font-medium"
               >
                 <RefreshCw className={`w-4 h-4 ${refreshingData ? 'animate-spin' : ''}`} />
-                <span className="text-sm">Refresh</span>
-              </button>
-              <button
-                onClick={() => {
-                  console.log("Test modal button clicked")
-                  setProjectDetailsModalOpen(true)
-                  setSelectedProject({
-                    project_id: 999,
-                    name: "Test Project",
-                    creator: "0x1234567890123456789012345678901234567890",
-                    approvedForFunding: false,
-                    totalFunds: "0",
-                    currentMilestone: 0,
-                    milestoneCount: 3,
-                    fundingExpired: false
-                  })
-                }}
-                className="flex items-center gap-2 px-3 py-2 bg-blue-600 rounded-lg border border-blue-500 text-white hover:bg-blue-700 transition-colors"
-              >
-                <span className="text-sm">Test Modal</span>
+                <span>Load Data</span>
               </button>
             </div>
           </div>
@@ -565,7 +531,9 @@ export default function AdminPage() {
               {pendingRequests.length === 0 ? (
                 <div className="text-center py-12">
                   <UserCheck className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-300">No pending citizenship requests</p>
+                  <p className="text-gray-300">
+                    {refreshingData ? "Loading..." : "No pending citizenship requests found. Click 'Load Data' to refresh."}
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -676,7 +644,9 @@ export default function AdminPage() {
             {pendingProjects.length === 0 ? (
               <div className="text-center py-12">
                 <FileCheck className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-300">No projects awaiting review</p>
+                <p className="text-gray-300">
+                  {refreshingData ? "Loading..." : "No projects awaiting review found. Click 'Load Data' to refresh."}
+                </p>
               </div>
             ) : (
               <div className="space-y-4">
