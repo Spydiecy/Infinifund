@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from "wagmi"
+import { parseEther } from "viem"
 import { infinifundContract, type ProjectData, type ProjectView, type ProjectDetails, type CitizenshipRequest } from "@/lib/infinifund-contract"
 import { toast } from "sonner"
 import { baseSepolia } from "@/lib/rainbowkit-config"
@@ -379,6 +380,10 @@ export function useInfinifundContract() {
         return false
       }
 
+      // Convert ETH amount to wei using parseEther for precision
+      const amountInWei = parseEther(amount)
+      console.log("Funding amount:", amount, "ETH =", amountInWei.toString(), "wei")
+
       toast.info("Submitting funding transaction...")
 
       writeContract({
@@ -386,7 +391,7 @@ export function useInfinifundContract() {
         abi: contractABI,
         functionName: 'fundProject',
         args: [BigInt(projectId)],
-        value: BigInt(amount),
+        value: amountInWei,
         account: address!,
         chain: baseSepolia,
       })

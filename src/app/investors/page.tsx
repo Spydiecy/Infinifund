@@ -213,39 +213,7 @@ export default function InvestorsLeaderboardPage() {
             <div className="text-sm text-gray-400">Your Rank</div>
           </div>
         </div>
-
-        {/* Connection Status */}
-        <div className="mb-8 bg-black border border-white p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div
-                className={`w-4 h-4 rounded-full ${isConnected ? "bg-white" : "bg-gray-500"} animate-pulse`}
-              />
-              <span className="text-white font-medium">
-                {isConnected
-                  ? `Connected: ${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`
-                  : "Connect to see your rank"}
-              </span>
-              {userRank && (
-                <Badge className="bg-white text-black border-white">Rank #{userRank}</Badge>
-              )}
-            </div>
-            <div className="flex items-center gap-4">
-              {!isConnected && (
-                <Button onClick={connectWallet} className="bg-white text-black hover:bg-gray-200">
-                  Connect Wallet
-                </Button>
-              )}
-              <Link href="/projects">
-                <Button variant="outline" className="border-white text-white hover:bg-white hover:text-black">
-                  Browse Projects
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </div>
-
-        {/* Leaderboard */}
+        
         {investors.length === 0 ? (
           <div className="bg-black border border-white p-12 text-center">
             <Trophy className="h-16 w-16 text-gray-500 mx-auto mb-4" />

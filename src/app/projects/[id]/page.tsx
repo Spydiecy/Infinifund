@@ -558,33 +558,6 @@ export default function ProjectDetailPage() {
 
             {/* Right Column - Stats & Actions */}
             <div className="space-y-6">
-              {/* Connection Status */}
-              <Card className="bg-black/50 border-white/10">
-                <CardContent className="p-6">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div
-                      className={`w-3 h-3 rounded-full ${isConnected ? "bg-green-500" : "bg-red-500"}`}
-                    />
-                    <span className="text-white font-medium">
-                      {isConnected ? "Wallet Connected" : "Wallet Disconnected"}
-                    </span>
-                  </div>
-                  {isConnected ? (
-                    <div className="space-y-2 text-sm text-white/60">
-                      <div>
-                        Address: {address?.slice(0, 6)}...{address?.slice(-4)}
-                      </div>
-                      <div>Citizen: {isCitizen ? "✅ Yes" : "❌ No"}</div>
-                    </div>
-                  ) : (
-                    <div className="text-center">
-                      <p className="text-white/60 text-sm mb-3">Connect your wallet to interact with this project</p>
-                      <div className="text-xs text-white/40">Use the wallet button in the navbar</div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
               {/* Project Stats */}
               <Card className="bg-black/50 border-white/10">
                 <CardHeader>
@@ -609,33 +582,6 @@ export default function ProjectDetailPage() {
                     <span className="text-white/60">Days Left</span>
                     <span className="text-white">{daysRemaining} days</span>
                   </div>
-                </CardContent>
-              </Card>
-
-              {/* Quick Actions */}
-              <Card className="bg-black/50 border-white/10">
-                <CardHeader>
-                  <CardTitle className="text-white">Quick Actions</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <Link href="/projects" className="block">
-                    <Button variant="outline" className="w-full border-white/20 text-white hover:bg-white/5">
-                      <ArrowLeft className="h-4 w-4 mr-2" />
-                      Back to Projects
-                    </Button>
-                  </Link>
-                  <Link href="/create-project" className="block">
-                    <Button variant="outline" className="w-full border-white/20 text-white hover:bg-white/5">
-                      <Target className="h-4 w-4 mr-2" />
-                      Submit Project
-                    </Button>
-                  </Link>
-                  <Link href="/investors" className="block">
-                    <Button variant="outline" className="w-full border-white/20 text-white hover:bg-white/5">
-                      <Users className="h-4 w-4 mr-2" />
-                      Investor Leaderboard
-                    </Button>
-                  </Link>
                 </CardContent>
               </Card>
             </div>
