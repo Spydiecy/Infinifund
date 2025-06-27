@@ -239,10 +239,13 @@ export default function AdminPage() {
     setFinalizingProject(projectId)
     try {
       console.log("Approving project for funding:", projectId)
-      console.log("Current user isAdmin:", isAdmin)
       console.log("Current user address:", userAddress)
       
-      if (!isAdmin) {
+      // Check admin status properly
+      const adminStatus = await isAdmin(userAddress)
+      console.log("Current user isAdmin:", adminStatus)
+      
+      if (!adminStatus) {
         toast.error("Only admins can approve projects for funding")
         return
       }
@@ -254,6 +257,8 @@ export default function AdminPage() {
       if (result) {
         toast.success("Project approval transaction submitted! Click 'Load Data' to refresh.")
         // Removed auto-reload - user must manually refresh
+      } else {
+        toast.error("Transaction failed. Please check the console for details.")
       }
     } catch (error: any) {
       console.error("Failed to approve project:", error)

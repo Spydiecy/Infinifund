@@ -340,12 +340,14 @@ export function useInfinifundContract() {
         return false
       }
 
-      if (!state.isAdmin) {
+      // Check admin status dynamically
+      const adminStatus = await isAdmin(address!)
+      if (!adminStatus) {
         toast.error("Only admins can finalize screening")
         return false
       }
 
-      toast.info("Submitting finalize screening transaction...")
+      console.log("Submitting finalizeScreening transaction...")
 
       writeContract({
         address: CONTRACT_ADDRESS as `0x${string}`,
