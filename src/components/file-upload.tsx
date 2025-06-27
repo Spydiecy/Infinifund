@@ -93,8 +93,8 @@ export function FileUpload({
         <div
           className={`relative border-2 border-dashed rounded-lg p-6 text-center transition-all duration-300 ${
             dragActive
-              ? "border-blue-400 bg-blue-500/10 scale-105"
-              : "border-gray-600 hover:border-blue-500/50 hover:bg-blue-500/5"
+              ? "border-gray-400 bg-gray-800/50"
+              : "border-gray-600 hover:border-gray-500 hover:bg-gray-900/50"
           }`}
           onDragEnter={handleDrag}
           onDragLeave={handleDrag}
@@ -108,7 +108,7 @@ export function FileUpload({
             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
           />
           <Upload
-            className={`mx-auto h-12 w-12 mb-4 transition-colors ${dragActive ? "text-blue-400" : "text-gray-400"}`}
+            className={`mx-auto h-12 w-12 mb-4 transition-colors ${dragActive ? "text-gray-300" : "text-gray-400"}`}
           />
           <p className="text-gray-300 mb-2">Drag and drop your file here, or click to select</p>
           <p className="text-sm text-gray-500">Max file size: {maxSize / (1024 * 1024)}MB</p>
@@ -121,9 +121,9 @@ export function FileUpload({
             </div>
           )}
 
-          <div className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg border border-gray-600">
+          <div className="flex items-center justify-between p-3 bg-gray-900 rounded-lg border border-gray-800">
             <div className="flex items-center space-x-3">
-              <ImageIcon className="h-5 w-5 text-blue-400" />
+              <ImageIcon className="h-5 w-5 text-gray-400" />
               <div>
                 <p className="text-sm font-medium text-white">{file.name}</p>
                 <p className="text-xs text-gray-400">{(file.size / (1024 * 1024)).toFixed(2)} MB</p>
@@ -133,7 +133,7 @@ export function FileUpload({
               variant="ghost"
               size="sm"
               onClick={removeFile}
-              className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+              className="text-red-400 hover:text-red-300 hover:bg-red-900/20"
             >
               <X className="h-4 w-4" />
             </Button>

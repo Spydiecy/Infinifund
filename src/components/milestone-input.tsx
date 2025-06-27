@@ -27,7 +27,7 @@ export function MilestoneInput({ milestones, onAdd, onRemove, onChange }: Milest
           variant="outline"
           size="sm"
           onClick={onAdd}
-          className="bg-black/50 border-gray-600 text-white hover:bg-blue-500/10 hover:border-blue-500"
+          className="bg-black border-gray-800 text-white hover:bg-gray-900"
         >
           <Plus className="h-4 w-4 mr-2" />
           Add Milestone
@@ -35,7 +35,7 @@ export function MilestoneInput({ milestones, onAdd, onRemove, onChange }: Milest
       </div>
 
       {milestones.length === 0 && (
-        <p className="text-sm text-gray-400 italic">Add at least one milestone to describe your breakthrough phases</p>
+        <p className="text-sm text-gray-400 italic">Add at least one milestone to describe your project phases</p>
       )}
 
       <div className="space-y-3">
@@ -43,14 +43,14 @@ export function MilestoneInput({ milestones, onAdd, onRemove, onChange }: Milest
           <div key={milestone.id} className="flex gap-3 items-start">
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-sm font-medium text-blue-300">Phase {index + 1}</span>
+                <span className="text-sm font-medium text-white">Phase {index + 1}</span>
                 {milestones.length > 1 && (
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
                     onClick={() => onRemove(milestone.id)}
-                    className="text-red-400 hover:text-red-300 p-1 h-auto hover:bg-red-500/10"
+                    className="text-red-400 hover:text-red-300 p-1 h-auto hover:bg-red-900/20"
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -59,8 +59,8 @@ export function MilestoneInput({ milestones, onAdd, onRemove, onChange }: Milest
               <Textarea
                 value={milestone.description}
                 onChange={(e) => onChange(milestone.id, e.target.value)}
-                placeholder={`Describe breakthrough phase ${index + 1}...`}
-                className="bg-black/50 border-gray-600 text-white placeholder-gray-400 focus:border-blue-500"
+                placeholder={`Describe milestone phase ${index + 1}...`}
+                className="bg-black border-gray-800 text-white placeholder-gray-500 focus:border-gray-600"
                 rows={3}
               />
             </div>

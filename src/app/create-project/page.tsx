@@ -296,40 +296,23 @@ export default function CreateProject() {
   }
 
   return (
-    <div className="min-h-screen bg-black relative overflow-hidden">
-      {/* Animated Background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-black to-purple-900/20" />
-      <div className="absolute inset-0">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse delay-1000" />
-      </div>
-
-      <div className="relative z-10 p-6">
-        <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen bg-black">
+      <div className="container mx-auto px-4 py-8 pt-24">
+        <div className="max-w-4xl mx-auto">
           {/* Header */}
-          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-12">
-            <div className="flex items-center justify-center gap-3 mb-4">
-              <Zap className="h-8 w-8 text-blue-400" />
-              <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-400 via-white to-purple-400 bg-clip-text text-transparent">
-                Infinita City
-              </h1>
-              <Rocket className="h-8 w-8 text-purple-400" />
-            </div>
-            <p className="text-xl text-blue-300 mb-2">"The City That Never Dies"</p>
-            <p className="text-gray-300 text-lg max-w-3xl mx-auto">
-              Submit your breakthrough project to advance human longevity, AI, biotechnology, and frontier science in
-              Próspera, Roatán
-            </p>
+          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-8">
+            <h1 className="text-4xl font-bold text-white mb-2">Create Project</h1>
+            <p className="text-gray-400">Submit your project to the Infinifund platform</p>
           </motion.div>
 
           {/* Connection Status */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-            <Card className="mb-8 bg-gray-900/50 border-blue-500/30 backdrop-blur-sm">
+            <Card className="mb-8 bg-black border-gray-800">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div
-                      className={`w-4 h-4 rounded-full ${isConnected ? "bg-green-400" : "bg-red-400"} animate-pulse`}
+                      className={`w-3 h-3 rounded-full ${isConnected ? "bg-green-500" : "bg-red-500"}`}
                     />
                     <span className="text-white font-medium">
                       {isConnected
@@ -338,30 +321,17 @@ export default function CreateProject() {
                     </span>
                     {isConnected && (
                       <div className="flex items-center gap-2">
-                        <span className={`px-3 py-1 rounded-full text-xs border ${
+                        <span className={`px-2 py-1 rounded text-xs ${
                           isCitizen 
-                            ? "bg-green-500/20 text-green-300 border-green-500/30" 
-                            : "bg-yellow-500/20 text-yellow-300 border-yellow-500/30"
+                            ? "bg-green-900 text-green-300 border border-green-800" 
+                            : "bg-yellow-900 text-yellow-300 border border-yellow-800"
                         }`}>
-                          {isCitizen ? "✓ Infinita Citizen" : "⏳ Pending Citizenship"}
+                          {isCitizen ? "✓ Citizen" : "⏳ Pending"}
                         </span>
-                        {!isCitizen && (
-                          <Button
-                            onClick={() => toast.info("Citizenship application coming soon!")}
-                            size="sm"
-                            className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1"
-                          >
-                            Apply for Citizenship
-                          </Button>
-                        )}
                       </div>
                     )}
                   </div>
                   <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2 text-blue-300">
-                      <Sparkles className="h-4 w-4" />
-                      <span className="text-sm">Próspera, Roatán Hub</span>
-                    </div>
                     {!isConnected && (
                       <ConnectButton />
                     )}
@@ -370,13 +340,13 @@ export default function CreateProject() {
                 
                 {/* Citizenship requirement notice */}
                 {isConnected && !isCitizen && (
-                  <div className="mt-4 p-4 bg-yellow-900/30 border border-yellow-500/30 rounded-lg">
+                  <div className="mt-4 p-3 bg-yellow-900/20 border border-yellow-800 rounded">
                     <div className="flex items-start gap-2">
                       <div className="text-yellow-400 mt-0.5">⚠️</div>
                       <div>
-                        <p className="text-yellow-200 font-medium">Citizenship Required</p>
-                        <p className="text-yellow-300/80 text-sm">
-                          Only verified Infinita City citizens can submit projects. Complete the citizenship application to unlock project submission.
+                        <p className="text-yellow-200 font-medium text-sm">Citizenship Required</p>
+                        <p className="text-yellow-300/80 text-xs">
+                          Only verified citizens can submit projects. Complete the citizenship application to unlock project submission.
                         </p>
                       </div>
                     </div>
@@ -389,14 +359,14 @@ export default function CreateProject() {
           <div className="grid lg:grid-cols-2 gap-8">
             {/* Left Column */}
             <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
-              <Card className="bg-gray-900/50 border-blue-500/30 backdrop-blur-sm">
+              <Card className="bg-black border-gray-800">
                 <CardHeader>
                   <CardTitle className="text-white flex items-center gap-2">
-                    <Upload className="h-5 w-5 text-blue-400" />
+                    <Upload className="h-5 w-5 text-white" />
                     Project Assets
                   </CardTitle>
-                  <CardDescription className="text-gray-300">
-                    Upload your project visuals for the Infinita City ecosystem
+                  <CardDescription className="text-gray-400">
+                    Upload your project visuals
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -405,14 +375,14 @@ export default function CreateProject() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-gray-900/50 border-purple-500/30 backdrop-blur-sm">
+              <Card className="bg-black border-gray-800">
                 <CardHeader>
                   <CardTitle className="text-white flex items-center gap-2">
-                    <Calendar className="h-5 w-5 text-purple-400" />
+                    <Calendar className="h-5 w-5 text-white" />
                     Funding Timeline
                   </CardTitle>
-                  <CardDescription className="text-gray-300">
-                    Set your project's funding duration in the Infinita ecosystem
+                  <CardDescription className="text-gray-400">
+                    Set your project's funding duration
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -421,15 +391,15 @@ export default function CreateProject() {
                     value={formData.fundingDuration.toString()}
                     onValueChange={(value) => handleInputChange("fundingDuration", Number.parseInt(value))}
                   >
-                    <SelectTrigger className="bg-black/50 border-gray-600 text-white">
+                    <SelectTrigger className="bg-black border-gray-800 text-white">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-gray-900 border-gray-600">
-                      <SelectItem value="7">7 Days - Sprint</SelectItem>
-                      <SelectItem value="14">14 Days - Rapid</SelectItem>
-                      <SelectItem value="30">30 Days - Standard</SelectItem>
-                      <SelectItem value="60">60 Days - Extended</SelectItem>
-                      <SelectItem value="90">90 Days - Long-term</SelectItem>
+                    <SelectContent className="bg-black border-gray-800">
+                      <SelectItem value="7">7 Days</SelectItem>
+                      <SelectItem value="14">14 Days</SelectItem>
+                      <SelectItem value="30">30 Days</SelectItem>
+                      <SelectItem value="60">60 Days</SelectItem>
+                      <SelectItem value="90">90 Days</SelectItem>
                     </SelectContent>
                   </Select>
                 </CardContent>
@@ -438,14 +408,14 @@ export default function CreateProject() {
 
             {/* Right Column */}
             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
-              <Card className="bg-gray-900/50 border-green-500/30 backdrop-blur-sm">
+              <Card className="bg-black border-gray-800">
                 <CardHeader>
                   <CardTitle className="text-white flex items-center gap-2">
-                    <Target className="h-5 w-5 text-green-400" />
+                    <Target className="h-5 w-5 text-white" />
                     Project Details
                   </CardTitle>
-                  <CardDescription className="text-gray-300">
-                    Describe your breakthrough innovation for Infinita City
+                  <CardDescription className="text-gray-400">
+                    Describe your project
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -454,8 +424,8 @@ export default function CreateProject() {
                     <Input
                       value={formData.name}
                       onChange={(e) => handleInputChange("name", e.target.value)}
-                      placeholder="Your revolutionary project name"
-                      className="bg-black/50 border-gray-600 text-white placeholder-gray-400 focus:border-blue-500"
+                      placeholder="Enter project name"
+                      className="bg-black border-gray-800 text-white placeholder-gray-500 focus:border-gray-600"
                     />
                   </div>
 
@@ -464,20 +434,20 @@ export default function CreateProject() {
                     <Textarea
                       value={formData.details}
                       onChange={(e) => handleInputChange("details", e.target.value)}
-                      placeholder="Describe how your project advances longevity, AI, biotech, or frontier science..."
-                      className="bg-black/50 border-gray-600 text-white placeholder-gray-400 min-h-[120px] focus:border-blue-500"
+                      placeholder="Describe your project..."
+                      className="bg-black border-gray-800 text-white placeholder-gray-500 min-h-[120px] focus:border-gray-600"
                     />
                   </div>
                 </CardContent>
               </Card>
 
-              <Card className="bg-gray-900/50 border-yellow-500/30 backdrop-blur-sm">
+              <Card className="bg-black border-gray-800">
                 <CardHeader>
                   <CardTitle className="text-white flex items-center gap-2">
-                    <Users className="h-5 w-5 text-yellow-400" />
+                    <Users className="h-5 w-5 text-white" />
                     Development Milestones
                   </CardTitle>
-                  <CardDescription className="text-gray-300">Define your project's breakthrough phases</CardDescription>
+                  <CardDescription className="text-gray-400">Define your project's phases</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <MilestoneInput
@@ -493,22 +463,21 @@ export default function CreateProject() {
 
           {/* Terms and Conditions */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mt-8">
-            <Card className="bg-gray-900/50 border-gray-600/30 backdrop-blur-sm">
+            <Card className="bg-black border-gray-800">
               <CardContent className="p-6">
                 <div className="flex items-start space-x-3">
                   <Checkbox
                     id="terms"
                     checked={acceptedTerms}
                     onCheckedChange={(checked) => setAcceptedTerms(checked === true)}
-                    className="border-gray-500 data-[state=checked]:bg-blue-500"
+                    className="border-gray-600 data-[state=checked]:bg-white data-[state=checked]:text-black"
                   />
                   <div className="text-sm text-gray-300">
                     <label htmlFor="terms" className="cursor-pointer">
                       I agree to the{" "}
-                      <span className="text-blue-400 hover:underline">Infinita City Terms of Service</span> and{" "}
-                      <span className="text-blue-400 hover:underline">Privacy Policy</span>. I understand that my
-                      project will be reviewed for alignment with Infinita City's mission of advancing human longevity
-                      and frontier technology.
+                      <span className="text-white hover:underline">Terms of Service</span> and{" "}
+                      <span className="text-white hover:underline">Privacy Policy</span>. I understand that my
+                      project will be reviewed before being listed on the platform.
                     </label>
                   </div>
                 </div>
@@ -525,7 +494,7 @@ export default function CreateProject() {
             <Button
               onClick={handleAIReview}
               disabled={isReviewing || !acceptedTerms}
-              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3 text-lg font-semibold disabled:opacity-50 mr-4"
+              className="bg-white text-black hover:bg-gray-200 px-8 py-3 text-lg font-semibold disabled:opacity-50 mr-4"
               size="lg"
             >
               {isReviewing ? (
@@ -542,8 +511,7 @@ export default function CreateProject() {
             </Button>
 
             <p className="text-gray-400 text-sm max-w-2xl mx-auto">
-              Our AI will evaluate your project's alignment with Infinita City's mission of advancing human longevity,
-              biotechnology, AI, and frontier science in Próspera, Roatán.
+              Our AI will evaluate your project before submission to ensure quality and platform alignment.
             </p>
           </motion.div>
         </div>
@@ -553,51 +521,49 @@ export default function CreateProject() {
       <AnimatePresence>
         {showReviewModal && aiReview && (
           <Dialog open={showReviewModal} onOpenChange={setShowReviewModal}>
-            <DialogContent className="bg-gray-900 border-gray-700 text-white max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-              <DialogHeader className="flex-shrink-0 pb-4 border-b border-gray-700">
+            <DialogContent className="bg-black border-gray-800 text-white max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+              <DialogHeader className="flex-shrink-0 pb-4 border-b border-gray-800">
                 <DialogTitle className="flex items-center gap-3 text-2xl">
                   {aiReview.approved ? (
                     <>
-                      <CheckCircle className="h-8 w-8 text-green-400" />
-                      <span className="bg-gradient-to-r from-green-400 to-blue-400 bg-clip-text text-transparent">
-                        Project Approved!
-                      </span>
+                      <CheckCircle className="h-8 w-8 text-green-500" />
+                      <span className="text-white">Project Approved!</span>
                     </>
                   ) : (
                     <>
-                      <XCircle className="h-8 w-8 text-red-400" />
+                      <XCircle className="h-8 w-8 text-red-500" />
                       <span className="text-red-400">Needs Improvement</span>
                     </>
                   )}
                 </DialogTitle>
-                <DialogDescription className="text-gray-300 text-lg">
+                <DialogDescription className="text-gray-400 text-lg">
                   {aiReview.approved
-                    ? "🎉 Congratulations! Your project has passed our AI review and aligns with Infinita City's vision."
-                    : "Your project needs some improvements to align better with Infinita City's mission."}
+                    ? "🎉 Congratulations! Your project has passed our AI review."
+                    : "Your project needs some improvements before submission."}
                 </DialogDescription>
               </DialogHeader>
 
               <div className="flex-1 overflow-y-auto space-y-6 py-4 pr-2 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
                 {/* Score */}
                 <div className="text-center">
-                  <div className="text-4xl font-bold text-blue-400 mb-2">{aiReview.score}/100</div>
-                  <div className="text-gray-300">Infinita City Alignment Score</div>
+                  <div className="text-4xl font-bold text-white mb-2">{aiReview.score}/100</div>
+                  <div className="text-gray-400">Quality Score</div>
                 </div>
 
                 {/* Feedback */}
-                <div className="bg-black/50 p-4 rounded-lg border border-gray-700">
+                <div className="bg-gray-900 p-4 rounded border border-gray-800">
                   <h4 className="font-semibold text-white mb-2">AI Feedback:</h4>
                   <p className="text-gray-300">{aiReview.feedback}</p>
                 </div>
 
                 {/* Suggestions */}
                 {aiReview.suggestions.length > 0 && (
-                  <div className="bg-blue-900/20 p-4 rounded-lg border border-blue-500/30">
-                    <h4 className="font-semibold text-blue-300 mb-2">Suggestions for Improvement:</h4>
+                  <div className="bg-gray-900 p-4 rounded border border-gray-800">
+                    <h4 className="font-semibold text-white mb-2">Suggestions for Improvement:</h4>
                     <ul className="space-y-1">
                       {aiReview.suggestions.map((suggestion, index) => (
                         <li key={index} className="text-gray-300 flex items-start gap-2">
-                          <span className="text-blue-400 mt-1">•</span>
+                          <span className="text-white mt-1">•</span>
                           {suggestion}
                         </li>
                       ))}
@@ -610,12 +576,12 @@ export default function CreateProject() {
                   <Button
                     onClick={handleFinalSubmit}
                     disabled={isSubmitting || !isConnected || !isCitizen}
-                    className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white px-6 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="bg-white text-black hover:bg-gray-200 px-6 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isSubmitting ? (
                       <>
                         <Rocket className="h-4 w-4 mr-2 animate-bounce" />
-                        Submitting to Blockchain...
+                        Submitting...
                       </>
                     ) : !isConnected ? (
                       <>
@@ -630,14 +596,14 @@ export default function CreateProject() {
                     ) : (
                       <>
                         <Rocket className="h-4 w-4 mr-2" />
-                        Submit to Infinita City
+                        Submit Project
                       </>
                     )}
                   </Button>
                   
                   <Button
                     onClick={() => setShowReviewModal(false)}
-                    className="bg-gray-700 hover:bg-gray-600 text-white px-6 py-2"
+                    className="bg-gray-800 hover:bg-gray-700 text-white px-6 py-2"
                   >
                     Close Review
                   </Button>
