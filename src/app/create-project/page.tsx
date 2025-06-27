@@ -224,7 +224,12 @@ export default function CreateProject() {
     }
 
     if (!isCitizen) {
-      toast.error("Only Infinita City citizens can submit projects. Please apply for citizenship first.")
+      toast.error("Only citizens can submit projects. Please apply for citizenship first.")
+      return
+    }
+
+    if (!aiReview || aiReview.score < 50) {
+      toast.error("Your project must score at least 50% on the AI review to be eligible for submission.")
       return
     }
 
@@ -512,6 +517,8 @@ export default function CreateProject() {
 
             <p className="text-gray-400 text-sm max-w-2xl mx-auto">
               Our AI will evaluate your project before submission to ensure quality and platform alignment.
+              <br />
+              <span className="text-yellow-400 font-medium">Minimum score of 50% required for submission.</span>
             </p>
           </motion.div>
         </div>
@@ -546,8 +553,21 @@ export default function CreateProject() {
               <div className="flex-1 overflow-y-auto space-y-6 py-4 pr-2 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
                 {/* Score */}
                 <div className="text-center">
-                  <div className="text-4xl font-bold text-white mb-2">{aiReview.score}/100</div>
+                  <div className={`text-4xl font-bold mb-2 ${aiReview.score >= 50 ? 'text-green-500' : 'text-red-500'}`}>
+                    {aiReview.score}/100
+                  </div>
                   <div className="text-gray-400">Quality Score</div>
+                  <div className="mt-2 text-sm">
+                    <span className="text-gray-400">Minimum required: </span>
+                    <span className="text-white font-medium">50/100</span>
+                  </div>
+                  {aiReview.score < 50 && (
+                    <div className="mt-3 p-3 bg-red-900/20 border border-red-800 rounded">
+                      <p className="text-red-300 text-sm">
+                        ⚠️ Your project scored below the minimum requirement of 50%. Please improve your project based on the suggestions below and try again.
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Feedback */}
@@ -575,7 +595,7 @@ export default function CreateProject() {
                 <div className="flex gap-4 justify-center pt-4">
                   <Button
                     onClick={handleFinalSubmit}
-                    disabled={isSubmitting || !isConnected || !isCitizen}
+                    disabled={isSubmitting || !isConnected || !isCitizen || aiReview.score < 50}
                     className="bg-white text-black hover:bg-gray-200 px-6 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isSubmitting ? (
@@ -593,6 +613,11 @@ export default function CreateProject() {
                         <Rocket className="h-4 w-4 mr-2" />
                         Citizenship Required
                       </>
+                    ) : aiReview.score < 50 ? (
+                      <>
+                        <XCircle className="h-4 w-4 mr-2" />
+                        Score Too Low (50% Required)
+                      </>
                     ) : (
                       <>
                         <Rocket className="h-4 w-4 mr-2" />
@@ -600,6 +625,19 @@ export default function CreateProject() {
                       </>
                     )}
                   </Button>
+                  
+                  {aiReview.score < 50 && (
+                    <Button
+                      onClick={() => {
+                        setShowReviewModal(false)
+                        setAiReview(null)
+                      }}
+                      className="bg-yellow-600 hover:bg-yellow-700 text-white px-6 py-2"
+                    >
+                      <Brain className="h-4 w-4 mr-2" />
+                      Improve & Review Again
+                    </Button>
+                  )}
                   
                   <Button
                     onClick={() => setShowReviewModal(false)}
