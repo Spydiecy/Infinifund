@@ -24,9 +24,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { infinifundContract, type CitizenshipRequest, type ProjectView, type ProjectDetails } from "@/lib/infinifund-contract"
+import { infinifundContract, type ProjectView, type ProjectDetails } from "@/lib/infinifund-contract"
 import { useInfinifundContract } from "@/hooks/use-infinifund-contract"
 import { toast } from "sonner"
+import { useChainId } from 'wagmi'
+import { baseSepolia } from '@/lib/rainbowkit-config'
 
 interface AdminCard {
   title: string
@@ -38,6 +40,7 @@ interface AdminCard {
 }
 
 export default function AdminPage() {
+  const chainId = useChainId()
   const {
     isConnected,
     userAddress,
@@ -45,32 +48,29 @@ export default function AdminPage() {
     isAdmin,
     loading,
     approveCitizenship,
-    rejectCitizenship,
     revokeCitizenship,
     addAdmin,
     removeAdmin,
     finalizeScreening,
     getAllProjects,
-    getPendingCitizenshipRequests,
   } = useInfinifundContract()
 
   const [isMainAdmin, setIsMainAdmin] = useState(false)
   const [activeView, setActiveView] = useState<string>("")
 
   // Real data from contract
-  const [pendingRequests, setPendingRequests] = useState<CitizenshipRequest[]>([])
   const [pendingProjects, setPendingProjects] = useState<ProjectView[]>([])
   const [selectedProject, setSelectedProject] = useState<ProjectView | null>(null)
   const [projectDetailsModalOpen, setProjectDetailsModalOpen] = useState(false)
 
   // Form states
   const [citizenAddress, setCitizenAddress] = useState("")
+  const [revokeAddress, setRevokeAddress] = useState("")
   const [adminAddress, setAdminAddress] = useState("")
   const [removeAdminAddress, setRemoveAdminAddress] = useState("")
 
   // Loading states
   const [approvingCitizen, setApprovingCitizen] = useState("")
-  const [rejectingCitizen, setRejectingCitizen] = useState("")
   const [revokingCitizen, setRevokingCitizen] = useState("")
   const [addingAdmin, setAddingAdmin] = useState(false)
   const [removingAdmin, setRemovingAdmin] = useState("")
@@ -100,9 +100,6 @@ export default function AdminPage() {
     try {
       setRefreshingData(true)
       console.log("Loading admin data...")
-      const requests = await getPendingCitizenshipRequests()
-      console.log("Pending requests:", requests)
-      setPendingRequests(requests)
 
       const allProjects = await getAllProjects()
       console.log("All projects:", allProjects)
@@ -118,50 +115,83 @@ export default function AdminPage() {
   }
 
   const handleApproveCitizenship = async (address: string) => {
+    if (!address || !address.trim()) {
+      toast.error("Please enter a valid address")
+      return
+    }
+
+    console.log("Starting approval process for:", address)
+    console.log("Current user address:", userAddress)
+    console.log("Contract address:", process.env.NEXT_PUBLIC_CONTRACT_ADDRESS)
+    console.log("Current chain ID:", chainId)
+    console.log("Expected chain ID:", baseSepolia.id)
+    
+    // Check network first
+    if (chainId !== baseSepolia.id) {
+      toast.error(`Please switch to Base Sepolia network (Chain ID: ${baseSepolia.id}). Current chain: ${chainId}`)
+      return
+    }
+    
+    // Check admin status properly
+    try {
+      const adminStatus = await isAdmin(userAddress)
+      console.log("Current user isAdmin:", adminStatus)
+      
+      if (!adminStatus) {
+        toast.error("You are not authorized to approve citizenship. Only admins can perform this action.")
+        return
+      }
+    } catch (error) {
+      console.error("Error checking admin status:", error)
+      toast.error("Failed to verify admin status")
+      return
+    }
+    
     setApprovingCitizen(address)
     try {
-      console.log("Approving citizenship for:", address)
+      console.log("Calling approveCitizenship function...")
       toast.info("Submitting approval transaction...")
-      await approveCitizenship(address)
-      toast.success("Approval transaction submitted! Click 'Load Data' to refresh.")
-      // Removed auto-reload - user must manually refresh
+      const result = await approveCitizenship(address)
+      console.log("Approval result:", result)
+      
+      if (result) {
+        toast.success("Citizenship approval transaction submitted successfully!")
+      } else {
+        toast.error("Transaction failed. Please check the console for details.")
+      }
     } catch (error: any) {
       console.error("Failed to approve citizenship:", error)
-      const errorMessage = error?.message || "Failed to approve citizenship"
+      let errorMessage = "Failed to approve citizenship"
+      
+      if (error?.message) {
+        if (error.message.includes("User rejected")) {
+          errorMessage = "Transaction was rejected by user"
+        } else if (error.message.includes("insufficient funds")) {
+          errorMessage = "Insufficient funds for gas fees"
+        } else if (error.message.includes("not authorized") || error.message.includes("admin")) {
+          errorMessage = "Not authorized - admin access required"
+        } else {
+          errorMessage = error.message
+        }
+      }
+      
       toast.error(errorMessage)
     } finally {
       setApprovingCitizen("")
     }
   }
 
-  const handleRejectCitizenship = async (address: string) => {
-    setRejectingCitizen(address)
-    try {
-      console.log("Rejecting citizenship for:", address)
-      toast.info("Submitting rejection transaction...")
-      await rejectCitizenship(address)
-      toast.success("Rejection transaction submitted! Click 'Load Data' to refresh.")
-      // Removed auto-reload - user must manually refresh
-    } catch (error: any) {
-      console.error("Failed to reject citizenship:", error)
-      const errorMessage = error?.message || "Failed to reject citizenship"
-      toast.error(errorMessage)
-    } finally {
-      setRejectingCitizen("")
-    }
-  }
-
   const handleRevokeCitizenship = async () => {
-    if (!citizenAddress) {
-      toast.error("Please enter a citizen address")
+    if (!revokeAddress) {
+      toast.error("Please enter a citizen address to revoke")
       return
     }
 
-    setRevokingCitizen(citizenAddress)
+    setRevokingCitizen(revokeAddress)
     try {
       toast.info("Revoking citizenship...")
-      await revokeCitizenship(citizenAddress)
-      setCitizenAddress("")
+      await revokeCitizenship(revokeAddress)
+      setRevokeAddress("")
     } catch (error: any) {
       toast.error("Failed to revoke citizenship: " + error.message)
     } finally {
@@ -305,10 +335,9 @@ export default function AdminPage() {
   // Admin cards configuration
   const adminCards: AdminCard[] = [
     {
-      title: "Citizenship Requests",
-      description: "Review and approve new citizenship applications",
+      title: "Citizenship Management",
+      description: "Manually approve or revoke citizenship status",
       icon: <UserCheck className="w-6 h-6" />,
-      count: pendingRequests.length,
       action: () => setActiveView("citizenship"),
       color: "from-black/40 to-black/60 border-white/20"
     },
@@ -422,8 +451,8 @@ export default function AdminPage() {
             <div className="bg-black/50 border border-white/20 rounded-xl p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-2xl font-bold text-white">{pendingRequests.length}</p>
-                  <p className="text-sm text-gray-300">Pending Requests</p>
+                  <p className="text-2xl font-bold text-white">-</p>
+                  <p className="text-sm text-gray-300">Manual Management</p>
                 </div>
                 <div className="w-12 h-12 rounded-lg bg-black/40 border border-white/20 flex items-center justify-center">
                   <Users className="w-6 h-6 text-white" />
@@ -523,99 +552,61 @@ export default function AdminPage() {
           </div>
 
           <div className="space-y-8">
-            {/* Pending Requests */}
-            <div className="bg-black/50 border border-white/20 rounded-xl p-6">
-              <h3 className="text-lg font-semibold text-white mb-4">
-                Pending Requests ({pendingRequests.length})
-              </h3>
-              {pendingRequests.length === 0 ? (
-                <div className="text-center py-12">
-                  <UserCheck className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-300">
-                    {refreshingData ? "Loading..." : "No pending citizenship requests found. Click 'Load Data' to refresh."}
-                  </p>
-                </div>
-              ) : (
+            {/* Manual Citizenship Actions */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Approve Citizenship */}
+              <div className="bg-black/50 border border-white/20 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-white mb-4">Approve Citizenship</h3>
                 <div className="space-y-4">
-                  {pendingRequests.map((request) => (
-                    <div
-                      key={request.address}
-                      className="flex items-center justify-between p-4 bg-black/30 rounded-lg border border-white/20"
-                    >
-                      <div>
-                        <p className="text-white font-mono text-sm">
-                          {request.address.slice(0, 8)}...{request.address.slice(-8)}
-                        </p>
-                        <p className="text-xs text-gray-300">
-                          {new Date(request.timestamp).toLocaleString()}
-                        </p>
-                      </div>
-                      <div className="flex gap-3">
-                        <Button
-                          size="sm"
-                          onClick={() => handleApproveCitizenship(request.address)}
-                          disabled={approvingCitizen === request.address}
-                          className="bg-black/80 hover:bg-black border border-white/20 text-white"
-                        >
-                          {approvingCitizen === request.address ? "Approving..." : "Approve"}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleRejectCitizenship(request.address)}
-                          disabled={rejectingCitizen === request.address}
-                          className="border-white/20 text-white hover:bg-white hover:text-black"
-                        >
-                          {rejectingCitizen === request.address ? "Rejecting..." : "Reject"}
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                  <div>
+                    <Label className="text-white">User Address</Label>
+                    <Input
+                      value={citizenAddress}
+                      onChange={(e) => setCitizenAddress(e.target.value)}
+                      placeholder="0x..."
+                      className="bg-black/30 border-white/20 text-white mt-2"
+                    />
+                  </div>
+                  <Button
+                    onClick={() => {
+                      if (citizenAddress.trim()) {
+                        handleApproveCitizenship(citizenAddress.trim())
+                        setCitizenAddress("")
+                      }
+                    }}
+                    disabled={!citizenAddress || !!approvingCitizen}
+                    className="w-full bg-green-600 hover:bg-green-700 border border-green-500 text-white"
+                  >
+                    {approvingCitizen ? "Approving..." : "Approve Citizenship"}
+                  </Button>
                 </div>
-              )}
-            </div>
+              </div>
 
-            {/* Revoke Citizenship */}
-            <div className="bg-black/50 border border-white/20 rounded-xl p-6">
-              <h3 className="text-lg font-semibold text-white mb-4">Revoke Citizenship</h3>
-              <div className="space-y-4">
-                <div>
-                  <Label className="text-white">Citizen Address</Label>
-                  <Input
-                    value={citizenAddress}
-                    onChange={(e) => setCitizenAddress(e.target.value)}
-                    placeholder="0x..."
-                    className="bg-black/30 border-white/20 text-white mt-2"
-                  />
+              {/* Revoke Citizenship */}
+              <div className="bg-black/50 border border-white/20 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-white mb-4">Revoke Citizenship</h3>
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-white">Citizen Address</Label>
+                    <Input
+                      value={revokeAddress}
+                      onChange={(e) => setRevokeAddress(e.target.value)}
+                      placeholder="0x..."
+                      className="bg-black/30 border-white/20 text-white mt-2"
+                    />
+                  </div>
+                  <Button
+                    onClick={handleRevokeCitizenship}
+                    disabled={!revokeAddress || revokingCitizen === revokeAddress}
+                    className="w-full bg-red-600 hover:bg-red-700 border border-red-500 text-white"
+                  >
+                    {revokingCitizen === revokeAddress ? "Revoking..." : "Revoke Citizenship"}
+                  </Button>
                 </div>
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button
-                      disabled={!citizenAddress || revokingCitizen === citizenAddress}
-                      className="bg-black/80 hover:bg-black border border-white/20 text-white"
-                    >
-                      {revokingCitizen === citizenAddress ? "Revoking..." : "Revoke Citizenship"}
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="bg-black border-white/20">
-                    <DialogHeader>
-                      <DialogTitle className="text-white">Confirm Revocation</DialogTitle>
-                      <DialogDescription className="text-white">
-                        Are you sure you want to revoke citizenship for {citizenAddress}?
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="flex gap-3 justify-end mt-4">
-                      <Button variant="outline" className="border-white/20">
-                        Cancel
-                      </Button>
-                      <Button onClick={handleRevokeCitizenship} className="bg-black/80 hover:bg-black border border-white/20">
-                        Confirm
-                      </Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
               </div>
             </div>
+
+
           </div>
         </div>
       </div>
@@ -659,7 +650,7 @@ export default function AdminPage() {
                           <span>by {project.creator.slice(0, 6)}...{project.creator.slice(-4)}</span>
                           <span>ID: {project.project_id}</span>
                           <span>{project.milestoneCount} milestones</span>
-                          <span>Funds: {parseFloat(project.totalFunds) / 1e18} FLOW</span>
+                          <span>Funds: {parseFloat(project.totalFunds) / 1e18} ETH</span>
                         </div>
                         <div className="text-xs text-gray-400">
                           <p>Status: {project.approvedForFunding ? "Approved" : "Pending Review"}</p>
@@ -821,8 +812,8 @@ export default function AdminPage() {
                 </div>
                 <h3 className="text-lg font-semibold text-white">Citizens</h3>
               </div>
-              <p className="text-2xl font-bold text-white mb-1">{pendingRequests.length}</p>
-              <p className="text-sm text-gray-300">Pending applications</p>
+              <p className="text-2xl font-bold text-white mb-1">-</p>
+              <p className="text-sm text-gray-300">Manual management</p>
             </div>
 
             <div className="bg-black/50 border border-white/20 rounded-xl p-6">
@@ -937,7 +928,7 @@ export default function AdminPage() {
                   </div>
                   <div className="space-y-1">
                     <span className="text-gray-400 block">Total Funds</span>
-                    <span className="text-white font-semibold">{parseFloat(selectedProject.totalFunds) / 1e18} FLOW</span>
+                    <span className="text-white font-semibold">{parseFloat(selectedProject.totalFunds) / 1e18} ETH</span>
                   </div>
                   <div className="space-y-1">
                     <span className="text-gray-400 block">Milestones</span>

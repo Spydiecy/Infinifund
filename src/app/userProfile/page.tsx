@@ -251,7 +251,7 @@ export default function UserProfile() {
               <div className="flex justify-between items-center">
                 <span className="text-sm text-white/60">Total Invested</span>
                 <span className="font-semibold">
-                  {userInvestments.reduce((total, inv) => total + Number(inv.amount) / 1e18, 0).toFixed(2)} FLOW
+                  {userInvestments.reduce((total, inv) => total + Number(inv.amount) / 1e18, 0).toFixed(2)} ETH
                 </span>
               </div>
             </div>
@@ -296,7 +296,7 @@ export default function UserProfile() {
                     </div>
                     <div className="text-sm text-white/60 mb-3">
                       <p>Creator: {project.creator.slice(0, 6)}...{project.creator.slice(-4)}</p>
-                      <p>Total Funds: {parseFloat(project.totalFunds) / 1e18} FLOW</p>
+                      <p>Total Funds: {parseFloat(project.totalFunds) / 1e18} ETH</p>
                     </div>
                     
                     <div className="space-y-2">
@@ -371,7 +371,7 @@ export default function UserProfile() {
                     <div className="flex justify-between items-center">
                       <div>
                         <p className="text-sm text-white/60">Investment Amount</p>
-                        <p className="font-semibold">{Number(investment.amount) / 1e18} FLOW</p>
+                        <p className="font-semibold">{Number(investment.amount) / 1e18} ETH</p>
                       </div>
                       <div className="text-right">
                         <p className="text-sm text-white/60">Date</p>

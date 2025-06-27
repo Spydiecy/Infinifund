@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from "wagmi"
 import { infinifundContract, type ProjectData, type ProjectView, type ProjectDetails, type CitizenshipRequest } from "@/lib/infinifund-contract"
 import { toast } from "sonner"
-import { flowTestnet } from "@/lib/rainbowkit-config"
+import { baseSepolia } from "@/lib/rainbowkit-config"
 import contractABI from "@/lib/abi.json"
 
 const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0xbc29335737795E7E6839882D1aF663e21Db0E736"
@@ -127,7 +127,7 @@ export function useInfinifundContract() {
         abi: contractABI,
         functionName: 'requestCitizenship',
         account: address!,
-        chain: flowTestnet,
+        chain: baseSepolia,
       })
 
       return true
@@ -167,7 +167,7 @@ export function useInfinifundContract() {
           BigInt(projectData.fundingDuration),
         ],
         account: address!,
-        chain: flowTestnet,
+        chain: baseSepolia,
       })
 
       return true
@@ -187,12 +187,14 @@ export function useInfinifundContract() {
         return false
       }
 
-      if (!state.isAdmin) {
+      // Check admin status dynamically
+      const adminStatus = await isAdmin(address!)
+      if (!adminStatus) {
         toast.error("Only admins can approve citizenship")
         return false
       }
 
-      toast.info("Submitting approval transaction...")
+      console.log("Submitting approveCitizenship transaction...")
 
       writeContract({
         address: CONTRACT_ADDRESS as `0x${string}`,
@@ -200,13 +202,14 @@ export function useInfinifundContract() {
         functionName: 'approveCitizenship',
         args: [userAddress],
         account: address!,
-        chain: flowTestnet,
+        chain: baseSepolia,
       })
 
       return true
     } catch (error: any) {
       console.error("Error approving citizenship:", error)
       const errorMessage = error?.message || error?.cause?.message || "Failed to approve citizenship"
+      toast.error(errorMessage)
       toast.error(errorMessage)
       throw error
     }
@@ -232,7 +235,7 @@ export function useInfinifundContract() {
         functionName: 'rejectCitizenship',
         args: [userAddress],
         account: address!,
-        chain: flowTestnet,
+        chain: baseSepolia,
       })
 
       return true
@@ -264,7 +267,7 @@ export function useInfinifundContract() {
         functionName: 'revokeCitizenship',
         args: [userAddress],
         account: address!,
-        chain: flowTestnet,
+        chain: baseSepolia,
       })
 
       return true
@@ -291,7 +294,7 @@ export function useInfinifundContract() {
         functionName: 'addAdmin',
         args: [adminAddress],
         account: address!,
-        chain: flowTestnet,
+        chain: baseSepolia,
       })
 
       return true
@@ -318,7 +321,7 @@ export function useInfinifundContract() {
         functionName: 'removeAdmin',
         args: [adminAddress],
         account: address!,
-        chain: flowTestnet,
+        chain: baseSepolia,
       })
 
       return true
@@ -350,7 +353,7 @@ export function useInfinifundContract() {
         functionName: 'finalizeScreening',
         args: [BigInt(projectId)],
         account: address!,
-        chain: flowTestnet,
+        chain: baseSepolia,
       })
 
       return true
@@ -383,7 +386,7 @@ export function useInfinifundContract() {
         args: [BigInt(projectId)],
         value: BigInt(amount),
         account: address!,
-        chain: flowTestnet,
+        chain: baseSepolia,
       })
 
       return true
@@ -415,7 +418,7 @@ export function useInfinifundContract() {
         functionName: 'voteForScreening',
         args: [BigInt(projectId), support],
         account: address!,
-        chain: flowTestnet,
+        chain: baseSepolia,
       })
 
       return true
@@ -490,7 +493,7 @@ export function useInfinifundContract() {
         functionName: 'requestCitizenship',
         args: [],
         account: address!,
-        chain: flowTestnet,
+        chain: baseSepolia,
       })
 
       return true

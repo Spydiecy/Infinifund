@@ -63,21 +63,35 @@ class InfinifundContract {
   private contract: ethers.Contract | null = null
   private provider: ethers.BrowserProvider | null = null
   private signer: ethers.Signer | null = null
+  private readOnlyProvider: ethers.JsonRpcProvider
 
   constructor() {
+    // Use Base Sepolia RPC for read-only operations
+    this.readOnlyProvider = new ethers.JsonRpcProvider('https://rpc.ankr.com/base_sepolia/8cd8e951cc28ebd329a4f5281020c4ffc1124d8db2a1aa415b823972e5edbc24')
+    
     if (typeof window !== 'undefined' && window.ethereum) {
       this.provider = new ethers.BrowserProvider(window.ethereum)
     }
   }
 
-  // Initialize the contract
+  // Initialize the contract for write operations (validates network)
   private async initContract() {
     if (!this.provider) {
       throw new Error('No web3 provider found')
     }
 
     try {
+      // Refresh provider to ensure latest network state
+      this.provider = new ethers.BrowserProvider(window.ethereum!)
       this.signer = await this.provider.getSigner()
+      
+      // Validate we're on Base Sepolia
+      const network = await this.provider.getNetwork()
+      const BASE_SEPOLIA_CHAIN_ID = BigInt(84532)
+      if (network.chainId !== BASE_SEPOLIA_CHAIN_ID) {
+        throw new Error(`Please switch to Base Sepolia (Chain ID: 84532). Current: ${network.chainId}`)
+      }
+      
       this.contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.signer)
       return this.contract
     } catch (error) {
@@ -86,13 +100,9 @@ class InfinifundContract {
     }
   }
 
-  // Get read-only contract
+  // Get read-only contract using static RPC provider
   private async getReadOnlyContract() {
-    if (!this.provider) {
-      throw new Error('No web3 provider found')
-    }
-
-    return new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.provider)
+    return new ethers.Contract(CONTRACT_ADDRESS, contractABI, this.readOnlyProvider)
   }
 
   // Connect wallet
@@ -103,6 +113,7 @@ class InfinifundContract {
 
     try {
       await window.ethereum.request({ method: 'eth_requestAccounts' })
+      // Always create fresh provider instance
       this.provider = new ethers.BrowserProvider(window.ethereum)
       this.signer = await this.provider.getSigner()
       const address = await this.signer.getAddress()
@@ -543,12 +554,43 @@ class InfinifundContract {
   // Get pending citizenship requests (admin only)
   async getPendingCitizenshipRequests(): Promise<CitizenshipRequest[]> {
     try {
-      // This would require events or additional contract storage
-      // For now, return empty array as the contract doesn't have this functionality
-      // In a real implementation, you'd listen to CitizenshipRequested events
-      return []
+      const contract = await this.getReadOnlyContract()
+      
+      // Get CitizenshipRequested events from the contract
+      const filter = contract.filters.CitizenshipRequested()
+      const events = await contract.queryFilter(filter, 0, 'latest')
+      
+      const pendingRequests: CitizenshipRequest[] = []
+      
+      // Check each request to see if it's still pending
+      for (const event of events) {
+        if ('args' in event && event.args) {
+          const userAddress = event.args[0] as string
+          if (userAddress) {
+            // Check if this user still has a pending request
+            const [isPending, isRejected, isCitizen] = await Promise.all([
+              contract.citizenshipPending(userAddress),
+              contract.citizenshipRejected(userAddress),
+              contract.isCitizen(userAddress)
+            ])
+            
+            // Only add if still pending (not approved, not rejected)
+            if (isPending && !isRejected && !isCitizen) {
+              const block = await event.getBlock()
+              pendingRequests.push({
+                address: userAddress,
+                timestamp: Number(block?.timestamp || 0)
+              })
+            }
+          }
+        }
+      }
+      
+      console.log('Found pending citizenship requests:', pendingRequests)
+      return pendingRequests
     } catch (error) {
       console.error('Error getting pending requests:', error)
+      // Try alternative approach if events fail
       return []
     }
   }

@@ -564,7 +564,7 @@ function ProjectCard({
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-white/60">Total Funded</span>
-                <span className="text-white font-semibold">{fundingAmount.toFixed(4)} FLOW</span>
+                <span className="text-white font-semibold">{fundingAmount.toFixed(4)} ETH</span>
               </div>
               <div className="text-xs text-white/40">
                 Estimated {Math.max(1, Math.floor(fundingAmount / 0.1))} investors
@@ -629,7 +629,7 @@ function ProjectCard({
                   </DialogHeader>
                   <div className="space-y-4 mt-4">
                     <div>
-                      <label className="text-sm text-white/60 block mb-2">Investment Amount (FLOW)</label>
+                      <label className="text-sm text-white/60 block mb-2">Investment Amount (ETH)</label>
                       <Input
                         type="number"
                         step="0.01"
@@ -659,7 +659,7 @@ function ProjectCard({
                         disabled={!fundAmount || Number(fundAmount) <= 0}
                         className="flex-1 bg-white/80 hover:bg-white text-black"
                       >
-                        Invest {fundAmount} FLOW
+                        Invest {fundAmount} ETH
                       </Button>
                     </div>
                   </div>

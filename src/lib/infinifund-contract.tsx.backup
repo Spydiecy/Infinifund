@@ -78,7 +78,7 @@ export class InfinifundContract {
 
   constructor() {
     // Initialize read-only provider for view functions only
-    this.readOnlyProvider = new ethers.JsonRpcProvider('https://testnet.evm.nodes.onflow.org')
+    this.readOnlyProvider = new ethers.JsonRpcProvider('https://rpc.ankr.com/base_sepolia/8cd8e951cc28ebd329a4f5281020c4ffc1124d8db2a1aa415b823972e5edbc24')
   }
 
   // Create a contract instance with read-only provider for view operations

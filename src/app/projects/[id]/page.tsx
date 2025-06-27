@@ -282,7 +282,7 @@ export default function ProjectDetailPage() {
               </div>
 
               <div className="flex-shrink-0 text-right">
-                <div className="text-3xl font-bold text-white mb-1">{formatEther(project.totalFunds)} FLOW</div>
+                <div className="text-3xl font-bold text-white mb-1">{formatEther(project.totalFunds)} ETH</div>
                 <div className="text-sm text-white/60">Total Funded</div>
                 <div className="text-xs text-white/40 mt-2">
                   ~{Math.max(1, Math.floor(Number(formatEther(project.totalFunds)) / 0.1))} investors
@@ -397,7 +397,7 @@ export default function ProjectDetailPage() {
 
                               {milestone.completed && (
                                 <div className="text-sm text-green-400">
-                                  ✅ Funds Released: {formatEther(milestone.fundsReleased.toString())} FLOW
+                                  ✅ Funds Released: {formatEther(milestone.fundsReleased.toString())} ETH
                                 </div>
                               )}
                             </div>
@@ -523,7 +523,7 @@ export default function ProjectDetailPage() {
                         <div className="space-y-4">
                           <div>
                             <Label htmlFor="funding-amount" className="text-white">
-                              Funding Amount (FLOW)
+                              Funding Amount (ETH)
                             </Label>
                             <Input
                               id="funding-amount"
@@ -593,7 +593,7 @@ export default function ProjectDetailPage() {
                 <CardContent className="space-y-4">
                   <div className="flex items-center justify-between">
                     <span className="text-white/60">Total Funding</span>
-                    <span className="text-white font-semibold">{formatEther(project.totalFunds)} FLOW</span>
+                    <span className="text-white font-semibold">{formatEther(project.totalFunds)} ETH</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-white/60">Milestones</span>
