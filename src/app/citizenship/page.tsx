@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { UserCheck, Clock, XCircle, CheckCircle, AlertCircle, Shield } from 'lucide-react'
+import { UserCheck, Clock, XCircle, CheckCircle, AlertCircle, Shield, RefreshCw } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ConnectButton } from '@rainbow-me/rainbowkit'
@@ -22,6 +22,7 @@ export default function CitizenshipPage() {
   const [isRejected, setIsRejected] = useState(false)
   const [isRequesting, setIsRequesting] = useState(false)
   const [actualCitizenStatus, setActualCitizenStatus] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
   useEffect(() => {
     if (isConnected && userAddress) {
@@ -33,6 +34,7 @@ export default function CitizenshipPage() {
     if (!userAddress) return
 
     try {
+      setIsRefreshing(true)
       // Reset states first
       setIsPending(false)
       setIsRejected(false)
@@ -48,6 +50,8 @@ export default function CitizenshipPage() {
     } catch (error) {
       console.error("Error checking citizenship status:", error)
       toast.error("Failed to check citizenship status")
+    } finally {
+      setIsRefreshing(false)
     }
   }
 
@@ -153,9 +157,22 @@ export default function CitizenshipPage() {
                 </span>
                 {isConnected && getStatusBadge()}
               </div>
-              {!isConnected && (
-                <ConnectButton />
-              )}
+              <div className="flex items-center gap-2">
+                {!isConnected ? (
+                  <ConnectButton />
+                ) : (
+                  <Button
+                    onClick={checkCitizenshipStatus}
+                    disabled={isRefreshing}
+                    variant="outline"
+                    size="sm"
+                    className="border-white/20 text-white hover:bg-white/10"
+                  >
+                    <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                    Refresh Status
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -197,6 +214,15 @@ export default function CitizenshipPage() {
                     </>
                   )}
                 </Button>
+              )}
+
+              {/* Info for non-connected users */}
+              {!isConnected && (
+                <div className="text-center">
+                  <p className="text-gray-400 text-sm">
+                    Connect your wallet above to apply for citizenship
+                  </p>
+                </div>
               )}
             </div>
           </div>
