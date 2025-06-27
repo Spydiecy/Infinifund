@@ -297,22 +297,6 @@ export default function ProjectsPage() {
               Refresh
             </Button>
           </div>
-
-          {/* Status Bar */}
-          <div className="flex items-center gap-4 p-4 bg-black/50 border border-white/10 rounded-lg">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
-              <span className="text-sm">Connected: {address?.slice(0, 6)}...{address?.slice(-4)}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge className={`${userCitizen ? 'bg-white/10 text-white border-white/20' : 'bg-white/5 text-white/60 border-white/10'}`}>
-                {userCitizen ? 'Citizen' : 'Non-Citizen'}
-              </Badge>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-white/60">
-              <span>Total Projects: {projects.length}</span>
-            </div>
-          </div>
         </motion.div>
 
         {/* Filters */}

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { useParams } from "next/navigation"
+import { useAccount } from "wagmi"
 import {
   ArrowLeft,
   DollarSign,
@@ -36,14 +37,13 @@ import Image from "next/image"
 
 export default function ProjectDetailPage() {
   const params = useParams()
+  const { address, isConnected } = useAccount()
   const projectId = Number(params.id)
 
   const [project, setProject] = useState<ProjectView | null>(null)
   const [projectDetails, setProjectDetails] = useState<ProjectDetails | null>(null)
   const [milestones, setMilestones] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [userAddress, setUserAddress] = useState<string>("")
-  const [isConnected, setIsConnected] = useState(false)
   const [isCitizen, setIsCitizen] = useState(false)
   const [hasVoted, setHasVoted] = useState(false)
   const [screeningVotes, setScreeningVotes] = useState({ votesFor: 0, votesAgainst: 0 })
@@ -54,39 +54,10 @@ export default function ProjectDetailPage() {
   const [bannerUrl, setBannerUrl] = useState<string>("")
 
   useEffect(() => {
-    checkConnection()
-  }, [])
-
-  useEffect(() => {
     if (projectId) {
       loadProjectData()
     }
-  }, [projectId, userAddress])
-
-  const checkConnection = async () => {
-    if (typeof window !== "undefined" && window.ethereum) {
-      try {
-        const accounts = await window.ethereum.request({ method: "eth_accounts" })
-        if (accounts.length > 0) {
-          setUserAddress(accounts[0])
-          setIsConnected(true)
-        }
-      } catch (error) {
-        console.error("Error checking connection:", error)
-      }
-    }
-  }
-
-  const connectWallet = async () => {
-    try {
-      const address = await infinifundContract.connect()
-      setUserAddress(address)
-      setIsConnected(true)
-      toast.success("Wallet connected successfully!")
-    } catch (error: any) {
-      toast.error("Failed to connect wallet: " + error.message)
-    }
-  }
+  }, [projectId, address])
 
   const loadProjectData = async () => {
     try {
@@ -99,26 +70,27 @@ export default function ProjectDetailPage() {
       // Get detailed project data
       const detailsData = await infinifundContract.getProjectDetails(projectId)
       setProjectDetails(detailsData)
-
+      
       // Load project images
-      if (detailsData.icon) {
+      if (detailsData?.icon) {
         const iconImageUrl = await fetchImageUrl(detailsData.icon)
         setIconUrl(iconImageUrl)
       }
 
-      if (detailsData.banner) {
-        const bannerImageUrl =await  fetchImageUrl(detailsData.banner)
+      if (detailsData?.banner) {
+        const bannerImageUrl = await fetchImageUrl(detailsData.banner)
         setBannerUrl(bannerImageUrl)
       }
+      
+      // Set milestones from project details
+      if (detailsData?.milestones) {
+        setMilestones(detailsData.milestones)
+      }
 
-      // Get full project with milestones
-      const fullProject = await infinifundContract.getProject(projectId)
-      setMilestones(fullProject.milestones)
-
-      if (userAddress) {
+      if (address && isConnected) {
         const [citizenStatus, votedStatus, votes] = await Promise.all([
-          infinifundContract.isCitizen(userAddress),
-          infinifundContract.hasVotedScreening(projectId, userAddress),
+          infinifundContract.isCitizen(address),
+          infinifundContract.hasVotedScreening(projectId, address),
           infinifundContract.getScreeningVotes(projectId),
         ])
 
@@ -152,8 +124,7 @@ export default function ProjectDetailPage() {
     setIsVoting(true)
     try {
       toast.info(`Submitting ${approve ? "approval" : "rejection"} vote...`)
-      const tx = await infinifundContract.voteScreening(projectId, approve)
-      await tx.wait()
+      await infinifundContract.voteScreening(projectId, approve)
       toast.success(`Vote ${approve ? "approved" : "rejected"} successfully!`)
       await loadProjectData()
     } catch (error: any) {
@@ -177,8 +148,7 @@ export default function ProjectDetailPage() {
     setIsFunding(true)
     try {
       toast.info("Processing funding transaction...")
-      const tx = await infinifundContract.fundProject(projectId, fundingAmount)
-      await tx.wait()
+      await infinifundContract.fundProject(projectId, fundingAmount)
       toast.success(`Successfully funded ${fundingAmount} ETH!`)
       setFundingAmount("")
       await loadProjectData()
@@ -213,7 +183,7 @@ export default function ProjectDetailPage() {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-orange-500 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
           <p className="text-white text-xl">Loading Project...</p>
         </div>
       </div>
@@ -223,12 +193,12 @@ export default function ProjectDetailPage() {
   if (!project || !projectDetails) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
-        <Card className="bg-gray-900/50 border-red-500/30 p-8 text-center">
-          <XCircle className="h-16 w-16 text-red-400 mx-auto mb-4" />
+        <Card className="bg-black/50 border-white/20 p-8 text-center max-w-md w-full">
+          <XCircle className="h-16 w-16 text-white/60 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-white mb-2">Project Not Found</h2>
-          <p className="text-gray-400 mb-6">The project you're looking for doesn't exist or has been removed.</p>
+          <p className="text-white/60 mb-6">The project you're looking for doesn't exist or has been removed.</p>
           <Link href="/projects">
-            <Button className="bg-orange-600 hover:bg-orange-700">
+            <Button className="bg-white/80 text-black hover:bg-white">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Projects
             </Button>
@@ -243,34 +213,27 @@ export default function ProjectDetailPage() {
   const daysRemaining = getDaysRemaining()
 
   return (
-    <div className="min-h-screen bg-black relative overflow-hidden">
-      {/* Animated Background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-orange-900/20 via-black to-pink-900/20" />
-      <div className="absolute inset-0">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-orange-500/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl animate-pulse delay-1000" />
-      </div>
-
-      <div className="relative z-10 p-6">
+    <div className="min-h-screen bg-black">
+      <div className="container mx-auto px-4 py-8 pt-24">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
             <div className="flex items-center gap-4 mb-6">
               <Link href="/projects">
-                <Button variant="outline" size="sm" className="border-gray-600 text-gray-300">
+                <Button variant="outline" size="sm" className="border-white/20 text-white hover:bg-white/5">
                   <ArrowLeft className="h-4 w-4 mr-2" />
                   Back to Projects
                 </Button>
               </Link>
               <Badge className={status.color}>{status.text}</Badge>
-              <Badge variant="outline" className="border-gray-600 text-gray-300">
+              <Badge variant="outline" className="border-white/20 text-white/80">
                 Project #{project.project_id}
               </Badge>
             </div>
 
             {/* Banner Image */}
             {bannerUrl && (
-              <div className="w-full h-64 rounded-lg overflow-hidden mb-6 border border-gray-700">
+              <div className="w-full h-64 rounded-lg overflow-hidden mb-6 border border-white/10">
                 <Image
                   src={bannerUrl || "/placeholder.svg"}
                   alt={`${project.name} banner`}
@@ -285,7 +248,7 @@ export default function ProjectDetailPage() {
             <div className="flex items-start gap-6">
               <div className="flex-shrink-0">
                 {iconUrl ? (
-                  <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-800 border-4 border-orange-500/30">
+                  <div className="w-20 h-20 rounded-full overflow-hidden bg-black/50 border-4 border-white/20">
                     <Image
                       src={iconUrl || "/placeholder.svg"}
                       alt={project.name}
@@ -295,7 +258,7 @@ export default function ProjectDetailPage() {
                     />
                   </div>
                 ) : (
-                  <div className="w-20 h-20 rounded-full bg-gradient-to-r from-orange-500 to-pink-500 flex items-center justify-center text-3xl font-bold text-white">
+                  <div className="w-20 h-20 rounded-full bg-white/10 border-4 border-white/20 flex items-center justify-center text-3xl font-bold text-white">
                     {project.name.charAt(0)}
                   </div>
                 )}
@@ -303,7 +266,7 @@ export default function ProjectDetailPage() {
 
               <div className="flex-1">
                 <h1 className="text-4xl font-bold text-white mb-2">{project.name}</h1>
-                <div className="flex items-center gap-4 text-gray-300 mb-4">
+                <div className="flex items-center gap-4 text-white/60 mb-4">
                   <div className="flex items-center gap-2">
                     <User className="h-4 w-4" />
                     <span>
@@ -315,12 +278,15 @@ export default function ProjectDetailPage() {
                     <span>{daysRemaining} days remaining</span>
                   </div>
                 </div>
-                <p className="text-gray-300 text-lg leading-relaxed">{projectDetails.details}</p>
+                <p className="text-white/80 text-lg leading-relaxed">{projectDetails.details}</p>
               </div>
 
               <div className="flex-shrink-0 text-right">
-                <div className="text-3xl font-bold text-green-400 mb-1">{formatEther(project.totalFunds)} ETH</div>
-                <div className="text-sm text-gray-400">Total Funded</div>
+                <div className="text-3xl font-bold text-white mb-1">{formatEther(project.totalFunds)} FLOW</div>
+                <div className="text-sm text-white/60">Total Funded</div>
+                <div className="text-xs text-white/40 mt-2">
+                  ~{Math.max(1, Math.floor(Number(formatEther(project.totalFunds)) / 0.1))} investors
+                </div>
               </div>
             </div>
           </motion.div>
@@ -330,31 +296,31 @@ export default function ProjectDetailPage() {
             {/* Left Column - Project Details */}
             <div className="lg:col-span-2 space-y-6">
               <Tabs defaultValue="overview" className="w-full">
-                <TabsList className="grid w-full grid-cols-4 bg-gray-900/50">
-                  <TabsTrigger value="overview">Overview</TabsTrigger>
-                  <TabsTrigger value="milestones">Milestones</TabsTrigger>
-                  <TabsTrigger value="voting">Voting</TabsTrigger>
-                  <TabsTrigger value="funding">Funding</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-4 bg-black/50 border border-white/10">
+                  <TabsTrigger value="overview" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/60">Overview</TabsTrigger>
+                  <TabsTrigger value="milestones" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/60">Milestones</TabsTrigger>
+                  <TabsTrigger value="voting" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/60">Voting</TabsTrigger>
+                  <TabsTrigger value="funding" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/60">Funding</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="overview" className="space-y-6">
-                  <Card className="bg-gray-900/50 border-gray-700/50">
+                  <Card className="bg-black/50 border-white/10">
                     <CardHeader>
                       <CardTitle className="text-white">Project Overview</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div className="grid grid-cols-2 gap-4">
                         <div className="flex items-center gap-3">
-                          <Target className="h-5 w-5 text-orange-400" />
+                          <Target className="h-5 w-5 text-white" />
                           <div>
-                            <div className="text-sm text-gray-400">Milestones</div>
+                            <div className="text-sm text-white/60">Milestones</div>
                             <div className="text-lg font-semibold text-white">{project.milestoneCount}</div>
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
-                          <Clock className="h-5 w-5 text-pink-400" />
+                          <Clock className="h-5 w-5 text-white" />
                           <div>
-                            <div className="text-sm text-gray-400">Current Phase</div>
+                            <div className="text-sm text-white/60">Current Phase</div>
                             <div className="text-lg font-semibold text-white">{project.currentMilestone + 1}</div>
                           </div>
                         </div>
@@ -362,7 +328,7 @@ export default function ProjectDetailPage() {
 
                       <div className="space-y-2">
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-400">Progress</span>
+                          <span className="text-white/60">Progress</span>
                           <span className="text-white">{Math.round(progress)}%</span>
                         </div>
                         <Progress value={progress} className="h-3" />
@@ -380,11 +346,11 @@ export default function ProjectDetailPage() {
                       transition={{ delay: index * 0.1 }}
                     >
                       <Card
-                        className={`bg-gray-900/50 border-gray-700/50 ${
+                        className={`bg-black/50 border-white/10 ${
                           milestone.completed
                             ? "border-green-500/30"
                             : index === project.currentMilestone
-                              ? "border-orange-500/30"
+                              ? "border-white/30"
                               : ""
                         }`}
                       >
@@ -392,11 +358,11 @@ export default function ProjectDetailPage() {
                           <div className="flex items-start gap-4">
                             <div className="flex-shrink-0">
                               {milestone.completed ? (
-                                <CheckCircle className="h-8 w-8 text-green-400" />
+                                <CheckCircle className="h-8 w-8 text-green-500" />
                               ) : index === project.currentMilestone ? (
-                                <Clock className="h-8 w-8 text-orange-400 animate-pulse" />
+                                <Clock className="h-8 w-8 text-white animate-pulse" />
                               ) : (
-                                <div className="h-8 w-8 rounded-full border-2 border-gray-600 flex items-center justify-center text-gray-400 text-sm font-bold">
+                                <div className="h-8 w-8 rounded-full border-2 border-white/30 flex items-center justify-center text-white/60 text-sm font-bold">
                                   {index + 1}
                                 </div>
                               )}
@@ -405,17 +371,17 @@ export default function ProjectDetailPage() {
                               <h3 className="text-lg font-semibold text-white mb-2">
                                 Milestone {index + 1}
                                 {milestone.completed && (
-                                  <Badge className="ml-2 bg-green-500/20 text-green-300">Completed</Badge>
+                                  <Badge className="ml-2 bg-green-500/10 text-green-400 border border-green-500/30">Completed</Badge>
                                 )}
                                 {index === project.currentMilestone && !milestone.completed && (
-                                  <Badge className="ml-2 bg-orange-500/20 text-orange-300">Current</Badge>
+                                  <Badge className="ml-2 bg-white/10 text-white border border-white/30">Current</Badge>
                                 )}
                               </h3>
-                              <p className="text-gray-300 mb-4">{milestone.description}</p>
+                              <p className="text-white/80 mb-4">{milestone.description}</p>
 
                               {milestone.reportSubmitted && (
-                                <div className="bg-gray-800/50 p-4 rounded-lg mb-4">
-                                  <h4 className="text-sm font-semibold text-yellow-400 mb-2">Report Submitted</h4>
+                                <div className="bg-black/30 p-4 rounded-lg mb-4 border border-white/10">
+                                  <h4 className="text-sm font-semibold text-white mb-2">Report Submitted</h4>
                                   <div className="flex items-center gap-4 text-sm">
                                     <div className="flex items-center gap-2 text-green-400">
                                       <CheckCircle className="h-4 w-4" />
@@ -431,7 +397,7 @@ export default function ProjectDetailPage() {
 
                               {milestone.completed && (
                                 <div className="text-sm text-green-400">
-                                  ✅ Funds Released: {formatEther(milestone.fundsReleased.toString())} ETH
+                                  ✅ Funds Released: {formatEther(milestone.fundsReleased.toString())} FLOW
                                 </div>
                               )}
                             </div>
@@ -443,25 +409,25 @@ export default function ProjectDetailPage() {
                 </TabsContent>
 
                 <TabsContent value="voting" className="space-y-6">
-                  <Card className="bg-gray-900/50 border-gray-700/50">
+                  <Card className="bg-black/50 border-white/10">
                     <CardHeader>
                       <CardTitle className="text-white flex items-center gap-2">
                         <Vote className="h-5 w-5" />
                         Project Screening
                       </CardTitle>
-                      <CardDescription>Citizens vote to approve or reject projects for funding</CardDescription>
+                      <CardDescription className="text-white/60">Citizens vote to approve or reject projects for funding</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
                       {/* Voting Stats */}
                       <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-green-500/10 p-4 rounded-lg border border-green-500/20">
+                        <div className="bg-green-500/10 p-4 rounded border border-green-500/30">
                           <div className="flex items-center gap-2 mb-2">
                             <CheckCircle className="h-5 w-5 text-green-400" />
                             <span className="text-green-400 font-semibold">Approve</span>
                           </div>
                           <div className="text-2xl font-bold text-white">{screeningVotes.votesFor}</div>
                         </div>
-                        <div className="bg-red-500/10 p-4 rounded-lg border border-red-500/20">
+                        <div className="bg-red-500/10 p-4 rounded border border-red-500/30">
                           <div className="flex items-center gap-2 mb-2">
                             <XCircle className="h-5 w-5 text-red-400" />
                             <span className="text-red-400 font-semibold">Reject</span>
@@ -472,33 +438,33 @@ export default function ProjectDetailPage() {
 
                       {/* Voting Actions */}
                       {!isConnected ? (
-                        <Alert>
+                        <Alert className="border-white/20 bg-black/30">
                           <Wallet className="h-4 w-4" />
-                          <AlertDescription>Connect your wallet to participate in voting</AlertDescription>
+                          <AlertDescription className="text-white">Connect your wallet to participate in voting</AlertDescription>
                         </Alert>
                       ) : !isCitizen ? (
-                        <Alert>
+                        <Alert className="border-yellow-500/30 bg-yellow-500/10">
                           <AlertTriangle className="h-4 w-4" />
-                          <AlertDescription>
+                          <AlertDescription className="text-yellow-200">
                             Only citizens can vote on project screening. Apply for citizenship first.
                           </AlertDescription>
                         </Alert>
                       ) : hasVoted ? (
-                        <Alert>
+                        <Alert className="border-green-500/30 bg-green-500/10">
                           <CheckCircle className="h-4 w-4" />
-                          <AlertDescription>You have already voted on this project.</AlertDescription>
+                          <AlertDescription className="text-green-200">You have already voted on this project.</AlertDescription>
                         </Alert>
                       ) : project.approvedForFunding ? (
-                        <Alert>
+                        <Alert className="border-green-500/30 bg-green-500/10">
                           <CheckCircle className="h-4 w-4" />
-                          <AlertDescription>This project has already been approved for funding.</AlertDescription>
+                          <AlertDescription className="text-green-200">This project has already been approved for funding.</AlertDescription>
                         </Alert>
                       ) : (
                         <div className="flex gap-4">
                           <Button
                             onClick={() => handleVote(true)}
                             disabled={isVoting}
-                            className="bg-green-600 hover:bg-green-700 flex-1"
+                            className="bg-white/80 text-black hover:bg-white flex-1"
                           >
                             {isVoting ? (
                               <Clock className="h-4 w-4 mr-2 animate-spin" />
@@ -511,7 +477,7 @@ export default function ProjectDetailPage() {
                             onClick={() => handleVote(false)}
                             disabled={isVoting}
                             variant="outline"
-                            className="border-red-500 text-red-400 hover:bg-red-500/10 flex-1"
+                            className="border-white/20 text-white hover:bg-white/5 flex-1"
                           >
                             {isVoting ? (
                               <Clock className="h-4 w-4 mr-2 animate-spin" />
@@ -527,37 +493,37 @@ export default function ProjectDetailPage() {
                 </TabsContent>
 
                 <TabsContent value="funding" className="space-y-6">
-                  <Card className="bg-gray-900/50 border-gray-700/50">
+                  <Card className="bg-black/50 border-white/10">
                     <CardHeader>
                       <CardTitle className="text-white flex items-center gap-2">
                         <DollarSign className="h-5 w-5" />
                         Fund This Project
                       </CardTitle>
-                      <CardDescription>Support breakthrough innovation with your investment</CardDescription>
+                      <CardDescription className="text-white/60">Support innovation with your investment</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
                       {!project.approvedForFunding ? (
-                        <Alert>
+                        <Alert className="border-yellow-500/30 bg-yellow-500/10">
                           <AlertTriangle className="h-4 w-4" />
-                          <AlertDescription>
+                          <AlertDescription className="text-yellow-200">
                             This project must be approved by citizens before it can receive funding.
                           </AlertDescription>
                         </Alert>
                       ) : project.fundingExpired ? (
-                        <Alert>
+                        <Alert className="border-red-500/30 bg-red-500/10">
                           <XCircle className="h-4 w-4" />
-                          <AlertDescription>The funding period for this project has expired.</AlertDescription>
+                          <AlertDescription className="text-red-200">The funding period for this project has expired.</AlertDescription>
                         </Alert>
                       ) : !isConnected ? (
-                        <Alert>
+                        <Alert className="border-white/20 bg-black/30">
                           <Wallet className="h-4 w-4" />
-                          <AlertDescription>Connect your wallet to fund this project</AlertDescription>
+                          <AlertDescription className="text-white">Connect your wallet to fund this project</AlertDescription>
                         </Alert>
                       ) : (
                         <div className="space-y-4">
                           <div>
                             <Label htmlFor="funding-amount" className="text-white">
-                              Funding Amount (ETH)
+                              Funding Amount (FLOW)
                             </Label>
                             <Input
                               id="funding-amount"
@@ -567,13 +533,13 @@ export default function ProjectDetailPage() {
                               placeholder="0.01"
                               value={fundingAmount}
                               onChange={(e) => setFundingAmount(e.target.value)}
-                              className="bg-gray-800 border-gray-600 text-white mt-2"
+                              className="bg-black/50 border-white/20 text-white mt-2 focus:border-white/40"
                             />
                           </div>
                           <Button
                             onClick={handleFunding}
                             disabled={isFunding || !fundingAmount}
-                            className="w-full bg-gradient-to-r from-orange-600 to-pink-600 hover:from-orange-700 hover:to-pink-700"
+                            className="w-full bg-white/80 text-black hover:bg-white"
                           >
                             {isFunding ? (
                               <Clock className="h-4 w-4 mr-2 animate-spin" />
@@ -593,79 +559,79 @@ export default function ProjectDetailPage() {
             {/* Right Column - Stats & Actions */}
             <div className="space-y-6">
               {/* Connection Status */}
-              <Card className="bg-gray-900/50 border-gray-700/50">
+              <Card className="bg-black/50 border-white/10">
                 <CardContent className="p-6">
                   <div className="flex items-center gap-3 mb-4">
                     <div
-                      className={`w-3 h-3 rounded-full ${isConnected ? "bg-green-400" : "bg-red-400"} animate-pulse`}
+                      className={`w-3 h-3 rounded-full ${isConnected ? "bg-green-500" : "bg-red-500"}`}
                     />
                     <span className="text-white font-medium">
                       {isConnected ? "Wallet Connected" : "Wallet Disconnected"}
                     </span>
                   </div>
                   {isConnected ? (
-                    <div className="space-y-2 text-sm text-gray-300">
+                    <div className="space-y-2 text-sm text-white/60">
                       <div>
-                        Address: {userAddress.slice(0, 6)}...{userAddress.slice(-4)}
+                        Address: {address?.slice(0, 6)}...{address?.slice(-4)}
                       </div>
                       <div>Citizen: {isCitizen ? "✅ Yes" : "❌ No"}</div>
                     </div>
                   ) : (
-                    <Button onClick={connectWallet} className="w-full bg-orange-600 hover:bg-orange-700">
-                      <Wallet className="h-4 w-4 mr-2" />
-                      Connect Wallet
-                    </Button>
+                    <div className="text-center">
+                      <p className="text-white/60 text-sm mb-3">Connect your wallet to interact with this project</p>
+                      <div className="text-xs text-white/40">Use the wallet button in the navbar</div>
+                    </div>
                   )}
                 </CardContent>
               </Card>
 
               {/* Project Stats */}
-              <Card className="bg-gray-900/50 border-gray-700/50">
+              <Card className="bg-black/50 border-white/10">
                 <CardHeader>
                   <CardTitle className="text-white">Project Statistics</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-400">Total Funding</span>
-                    <span className="text-green-400 font-semibold">{formatEther(project.totalFunds)} ETH</span>
+                    <span className="text-white/60">Total Funding</span>
+                    <span className="text-white font-semibold">{formatEther(project.totalFunds)} FLOW</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-400">Milestones</span>
+                    <span className="text-white/60">Milestones</span>
                     <span className="text-white">
                       {project.currentMilestone} / {project.milestoneCount}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-400">Progress</span>
-                    <span className="text-orange-400">{Math.round(progress)}%</span>
+                    <span className="text-white/60">Progress</span>
+                    <span className="text-white">{Math.round(progress)}%</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-400">Days Left</span>
-                    <span className="text-pink-400">{daysRemaining} days</span>
+                    <span className="text-white/60">Days Left</span>
+                    <span className="text-white">{daysRemaining} days</span>
                   </div>
                 </CardContent>
               </Card>
 
               {/* Quick Actions */}
-              <Card className="bg-gray-900/50 border-gray-700/50">
+              <Card className="bg-black/50 border-white/10">
                 <CardHeader>
                   <CardTitle className="text-white">Quick Actions</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <Link href="/projects" className="block">
-                    <Button variant="outline" className="w-full border-gray-600 text-gray-300">
+                    <Button variant="outline" className="w-full border-white/20 text-white hover:bg-white/5">
                       <ArrowLeft className="h-4 w-4 mr-2" />
                       Back to Projects
                     </Button>
                   </Link>
-                  <Link href="/top-projects" className="block">
-                    <Button variant="outline" className="w-full border-gray-600 text-gray-300">
-                      <Award className="h-4 w-4 mr-2" />
-                      Top Projects
+                  <Link href="/create-project" className="block">
+                    <Button variant="outline" className="w-full border-white/20 text-white hover:bg-white/5">
+                      <Target className="h-4 w-4 mr-2" />
+                      Submit Project
                     </Button>
                   </Link>
                   <Link href="/investors" className="block">
-                    <Button variant="outline" className="w-full border-gray-600 text-gray-300">
+                    <Button variant="outline" className="w-full border-white/20 text-white hover:bg-white/5">
                       <Users className="h-4 w-4 mr-2" />
                       Investor Leaderboard
                     </Button>

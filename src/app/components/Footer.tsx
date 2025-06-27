@@ -3,6 +3,7 @@
 import { motion } from "framer-motion"
 import { Bitcoin, Instagram, Linkedin, Twitter, Github } from "lucide-react"
 import Link from "next/link"
+import logo from "./logo.jpg"
 
 const footerSections = {
   projects: {
@@ -10,7 +11,6 @@ const footerSections = {
     items: [
       { name: "Browse Projects", href: "/projects" },
       { name: "Submit Project", href: "/create-project" },
-      { name: "Top Projects", href: "/top-projects" },
     ],
   },
   community: {
@@ -64,7 +64,7 @@ export default function Footer() {
         {/* Logo Section */}
         <motion.div variants={itemVariants} className="lg:col-span-1">
           <Link href="/" className="flex items-center gap-2 mb-4">
-            <Bitcoin className="w-8 h-8" />
+            <img src={logo.src || "/favicon.ico"} alt="InfiniFund" className="w-8 h-8 rounded-full" />
             <span className="text-xl font-bold">InfiniFund</span>
           </Link>
           <p className="text-gray-400">

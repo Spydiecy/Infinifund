@@ -24,16 +24,14 @@ const navItems: NavItem[] = [
     href: "/projects",
     dropdown: [
       { name: "Browse Projects", href: "/projects" },
-      { name: "Top Projects", href: "/top-projects" },
       { name: "Create Project", href: "/create-project" },
     ],
   },
   {
-    name: "Account",
+    name: "Citizenship",
     href: "/userProfile",
     dropdown: [
       { name: "My Profile", href: "/userProfile" },
-      { name: "My Projects", href: "/my-projects" },
       { name: "Apply Citizenship", href: "/citizenship" },
       { name: "Investors", href: "/investors" },
     ],
@@ -86,7 +84,7 @@ export default function Navbar() {
     <nav
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         isScrolled 
-          ? "bg-black/30 backdrop-blur-lg border-b border-slate-800/20" 
+          ? "bg-black/30 backdrop-blur-lg border-b border-white/10" 
           : "bg-transparent backdrop-blur-sm"
       }`}
     >
@@ -99,7 +97,7 @@ export default function Navbar() {
           >
             <div className="relative">
               <Image
-                src={logo.src || "/placeholder.svg"}
+                src={logo.src || "/favicon.ico"}
                 alt="InfiniFund"
                 width={32}
                 height={32}
@@ -120,7 +118,7 @@ export default function Navbar() {
               >
                 <button
                   onClick={() => router.push(item.href)}
-                  className="flex items-center gap-1 text-slate-300 hover:text-white transition-colors px-3 py-2 rounded-lg hover:bg-slate-800/50 font-medium text-sm"
+                  className="flex items-center gap-1 text-white/60 hover:text-white transition-colors px-3 py-2 rounded-lg hover:bg-white/5 font-medium text-sm"
                 >
                   {item.name}
                   {item.dropdown && <ChevronDown className="w-4 h-4" />}
@@ -133,13 +131,13 @@ export default function Navbar() {
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 10, scale: 0.95 }}
                       transition={{ duration: 0.15 }}
-                      className="absolute top-full left-0 mt-2 w-56 bg-slate-900/95 backdrop-blur-lg rounded-xl shadow-xl border border-slate-700/50 py-2"
+                      className="absolute top-full left-0 mt-2 w-56 bg-black/90 backdrop-blur-lg rounded-xl shadow-xl border border-white/10 py-2"
                     >
                       {item.dropdown.map((dropdownItem) => (
                         <button
                           key={dropdownItem.name}
                           onClick={() => router.push(dropdownItem.href)}
-                          className="w-full text-left px-4 py-2.5 text-slate-300 hover:text-white hover:bg-slate-800/50 transition-colors text-sm font-medium"
+                          className="w-full text-left px-4 py-2.5 text-white/60 hover:text-white hover:bg-white/5 transition-colors text-sm font-medium"
                         >
                           {dropdownItem.name}
                         </button>
@@ -159,9 +157,9 @@ export default function Navbar() {
                 value={searchQuery}
                 onChange={(e) => handleSearch(e.target.value)}
                 placeholder="Search projects, researchers..."
-                className="w-full bg-slate-800/50 text-white placeholder-slate-400 px-4 py-2 pl-10 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500/50 focus:bg-slate-800/70 transition-all border border-slate-700/50"
+                className="w-full bg-black/50 text-white placeholder-white/40 px-4 py-2 pl-10 rounded-lg focus:outline-none focus:ring-2 focus:ring-white/20 focus:bg-black/70 transition-all border border-white/10"
               />
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 w-4 h-4" />
             </div>
             
             <AnimatePresence>
@@ -170,12 +168,12 @@ export default function Navbar() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 10 }}
-                  className="absolute top-full left-0 right-0 mt-2 bg-slate-900/95 backdrop-blur-lg rounded-xl shadow-xl border border-slate-700/50 py-2"
+                  className="absolute top-full left-0 right-0 mt-2 bg-black/90 backdrop-blur-lg rounded-xl shadow-xl border border-white/10 py-2"
                 >
                   {searchResults.map((result, index) => (
                     <button 
                       key={index} 
-                      className="w-full text-left px-4 py-2.5 text-slate-300 hover:text-white hover:bg-slate-800/50 transition-colors text-sm"
+                      className="w-full text-left px-4 py-2.5 text-white/60 hover:text-white hover:bg-white/5 transition-colors text-sm"
                     >
                       {result}
                     </button>
@@ -192,10 +190,10 @@ export default function Navbar() {
               <div className="relative">
                 <button
                   onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                  className="flex items-center gap-3 bg-slate-800/50 hover:bg-slate-800/70 text-white px-4 py-2 rounded-lg transition-all border border-slate-700/50 group"
+                  className="flex items-center gap-3 bg-black/50 hover:bg-black/70 text-white px-4 py-2 rounded-lg transition-all border border-white/10 group"
                 >
-                  <div className="w-6 h-6 rounded-full bg-black/60 border border-slate-800 flex items-center justify-center">
-                    <div className="w-2 h-2 rounded-full bg-slate-300" />
+                  <div className="w-6 h-6 rounded-full bg-white/10 border border-white/20 flex items-center justify-center">
+                    <div className="w-2 h-2 rounded-full bg-white/60" />
                   </div>
                   <span className="text-sm font-medium">
                     {address?.slice(0, 6)}...{address?.slice(-4)}
@@ -210,30 +208,21 @@ export default function Navbar() {
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 10, scale: 0.95 }}
                       transition={{ duration: 0.15 }}
-                      className="absolute top-full right-0 mt-2 w-48 bg-slate-900/95 backdrop-blur-lg rounded-xl shadow-xl border border-slate-700/50 py-2"
+                      className="absolute top-full right-0 mt-2 w-48 bg-black/90 backdrop-blur-lg rounded-xl shadow-xl border border-white/10 py-2"
                     >
                       <button
                         onClick={() => {
                           router.push("/userProfile")
                           setIsUserMenuOpen(false)
                         }}
-                        className="w-full text-left px-4 py-2.5 text-slate-300 hover:text-white hover:bg-slate-800/50 transition-colors text-sm font-medium"
+                        className="w-full text-left px-4 py-2.5 text-white/60 hover:text-white hover:bg-white/5 transition-colors text-sm font-medium"
                       >
                         Profile
                       </button>
-                      <button
-                        onClick={() => {
-                          router.push("/userProfile")
-                          setIsUserMenuOpen(false)
-                        }}
-                        className="w-full text-left px-4 py-2.5 text-slate-300 hover:text-white hover:bg-slate-800/50 transition-colors text-sm font-medium"
-                      >
-                        My Account
-                      </button>
-                      <div className="border-t border-slate-700/50 my-1" />
+                      <div className="border-t border-white/10 my-1" />
                       <button
                         onClick={handleDisconnect}
-                        className="w-full text-left px-4 py-2.5 text-red-400 hover:text-red-300 hover:bg-slate-800/50 transition-colors text-sm font-medium"
+                        className="w-full text-left px-4 py-2.5 text-red-400 hover:text-red-300 hover:bg-white/5 transition-colors text-sm font-medium"
                       >
                         Disconnect
                       </button>
@@ -276,7 +265,7 @@ export default function Navbar() {
                           return (
                             <button 
                               onClick={openConnectModal}
-                              className="bg-black/80 hover:bg-black border border-slate-700 text-white px-6 py-2 rounded-lg font-medium text-sm transition-all hover:scale-105 shadow-lg"
+                              className="bg-black/80 hover:bg-black border border-white/20 text-white px-6 py-2 rounded-lg font-medium text-sm transition-all hover:scale-105 shadow-lg"
                             >
                               Connect Wallet
                             </button>
@@ -286,10 +275,10 @@ export default function Navbar() {
                         return (
                           <button 
                             onClick={openAccountModal}
-                            className="flex items-center gap-3 bg-slate-800/50 hover:bg-slate-800/70 text-white px-4 py-2 rounded-lg transition-all border border-slate-700/50"
+                            className="flex items-center gap-3 bg-black/50 hover:bg-black/70 text-white px-4 py-2 rounded-lg transition-all border border-white/10"
                           >
-                            <div className="w-6 h-6 rounded-full bg-black/60 border border-slate-800 flex items-center justify-center">
-                              <div className="w-2 h-2 rounded-full bg-slate-300" />
+                            <div className="w-6 h-6 rounded-full bg-white/10 border border-white/20 flex items-center justify-center">
+                              <div className="w-2 h-2 rounded-full bg-white/60" />
                             </div>
                             <span className="text-sm font-medium">
                               {account.displayName || `${account.address.slice(0, 6)}...${account.address.slice(-4)}`}
@@ -306,7 +295,7 @@ export default function Navbar() {
             {/* Mobile Menu Button */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="md:hidden p-2 text-slate-300 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors"
+              className="md:hidden p-2 text-white/60 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
             >
               {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
@@ -321,7 +310,7 @@ export default function Navbar() {
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
               transition={{ duration: 0.2 }}
-              className="md:hidden border-t border-slate-700/50 py-4"
+              className="md:hidden border-t border-white/10 py-4"
             >
               {/* Mobile Search */}
               <div className="px-4 pb-4">
@@ -331,9 +320,9 @@ export default function Navbar() {
                     value={searchQuery}
                     onChange={(e) => handleSearch(e.target.value)}
                     placeholder="Search projects, researchers..."
-                    className="w-full bg-slate-800/50 text-white placeholder-slate-400 px-4 py-2 pl-10 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500/50 border border-slate-700/50"
+                    className="w-full bg-black/50 text-white placeholder-white/40 px-4 py-2 pl-10 rounded-lg focus:outline-none focus:ring-2 focus:ring-white/20 border border-white/10"
                   />
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 w-4 h-4" />
                 </div>
               </div>
 
@@ -343,7 +332,7 @@ export default function Navbar() {
                   <div key={item.name}>
                     <button
                       onClick={() => router.push(item.href)}
-                      className="w-full text-left px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-800/50 transition-colors font-medium"
+                      className="w-full text-left px-4 py-3 text-white/60 hover:text-white hover:bg-white/5 transition-colors font-medium"
                     >
                       {item.name}
                     </button>
@@ -353,7 +342,7 @@ export default function Navbar() {
                           <button
                             key={dropdownItem.name}
                             onClick={() => router.push(dropdownItem.href)}
-                            className="w-full text-left px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors text-sm"
+                            className="w-full text-left px-4 py-2 text-white/40 hover:text-white hover:bg-white/5 transition-colors text-sm"
                           >
                             {dropdownItem.name}
                           </button>

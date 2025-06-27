@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from "wagmi"
-import { infinifundContract, type ProjectData, type ProjectView, type ProjectDetails, type Project, type CitizenshipRequest } from "@/lib/infinifund-contract"
+import { infinifundContract, type ProjectData } from "@/lib/infinifund-contract"
 import { toast } from "sonner"
 import { flowTestnet } from "@/lib/rainbowkit-config"
 import contractABI from "@/lib/abi.json"
