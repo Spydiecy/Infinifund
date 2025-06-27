@@ -1043,7 +1043,7 @@ export default function AdminPage() {
                   Close
                 </Button>
                 <Link href={`/projects/${selectedProject.project_id}`} target="_blank">
-                  <Button variant="outline" className="border-white/20 text-white hover:bg-blue-600">
+                  <Button variant="outline" className="border-white/20 text-white hover:bg-slate-800">
                     View Public Page
                   </Button>
                 </Link>

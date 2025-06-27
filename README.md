@@ -20,8 +20,8 @@ Infinifund bridges the gap between urban development and blockchain by empowerin
 - **Investor Protection:**  
   Investors can request a bailout if fraud is suspected. If the majority agrees, remaining funds are refunded.
 
-- **Leaderboards:**  
-  Highlights top projects by funds raised and, in future, top investors by participation.
+- **Investor Leaderboards:**  
+  Showcases top investors by participation and contribution to the platform.
 
 - **User Profiles:**  
   Users can customize profiles with avatars (IPFS), social links, and view their created and funded projects.
@@ -49,8 +49,8 @@ Infinifund bridges the gap between urban development and blockchain by empowerin
    - If investors suspect fraud or lack of progress, they can request a bailout.
    - Upon majority agreement, remaining funds are refunded.
 
-6. **Leaderboards & Profiles**
-   - Top projects and (future) top investors are showcased.
+6. **Investor Profiles & Recognition**
+   - Top investors are showcased based on their contribution and participation.
    - Users manage their profile, see their projects, and track their investments.
 
 ## Technical Highlights
