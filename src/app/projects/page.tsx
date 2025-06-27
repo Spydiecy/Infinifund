@@ -248,7 +248,7 @@ export default function ProjectsPage() {
 
   if (!isConnected) {
     return (
-      <div className="min-h-screen bg-black text-white pt-24 px-6">
+      <div className="min-h-screen bg-black text-white pt-10 px-6">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-center min-h-[60vh]">
             <Card className="bg-black/50 border-white/20 max-w-md w-full">
